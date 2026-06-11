@@ -1,4 +1,4 @@
-package com.yoedu.yoedurealestateapi.Config;
+package com.yoedu.yoedurealestateapi.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;

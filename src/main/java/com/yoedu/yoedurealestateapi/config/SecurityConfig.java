@@ -1,4 +1,4 @@
-package com.yoedu.yoedurealestateapi.Config;
+package com.yoedu.yoedurealestateapi.config;
 
 
 import com.yoedu.yoedurealestateapi.security.JwtAuthenticationFilter;

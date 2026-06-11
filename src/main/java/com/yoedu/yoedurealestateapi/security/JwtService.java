@@ -30,34 +30,34 @@ public class JwtService {
         this.secretKey = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateAccessToken(User user, Instant now, Instant expiresAt) {
-        return Jwts.builder()
-                .issuer(properties.issuer())
-                .subject(user.getUsername())
-                .issuedAt(Date.from(now))
-                .expiration(Date.from(expiresAt))
-                .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
-                .claim("roles", List.of(user.getRole().name()))
-                .claim("userId", user.getId())
-                .claim("fullName", user.getFullName())
-                .claim("parentId", user.getParent() != null ? user.getParent().getId() : null)
-                .claim("teacherId", user.getTeacher() != null ? user.getTeacher().getId() : null)
-                .signWith(secretKey)
-                .compact();
-    }
-
-    public String generateRefreshToken(User user, String jti, Instant now, Instant expiresAt) {
-        return Jwts.builder()
-                .issuer(properties.issuer())
-                .subject(user.getUsername())
-                .id(jti)
-                .issuedAt(Date.from(now))
-                .expiration(Date.from(expiresAt))
-                .claim(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE)
-                .claim("userId", user.getId())
-                .signWith(secretKey)
-                .compact();
-    }
+//    public String generateAccessToken(User user, Instant now, Instant expiresAt) {
+//        return Jwts.builder()
+//                .issuer(properties.issuer())
+//                .subject(user.getUsername())
+//                .issuedAt(Date.from(now))
+//                .expiration(Date.from(expiresAt))
+//                .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
+//                .claim("roles", List.of(user.getRole().name()))
+//                .claim("userId", user.getId())
+//                .claim("fullName", user.getFullName())
+//                .claim("parentId", user.getParent() != null ? user.getParent().getId() : null)
+//                .claim("teacherId", user.getTeacher() != null ? user.getTeacher().getId() : null)
+//                .signWith(secretKey)
+//                .compact();
+//    }
+//
+//    public String generateRefreshToken(User user, String jti, Instant now, Instant expiresAt) {
+//        return Jwts.builder()
+//                .issuer(properties.issuer())
+//                .subject(user.getUsername())
+//                .id(jti)
+//                .issuedAt(Date.from(now))
+//                .expiration(Date.from(expiresAt))
+//                .claim(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE)
+//                .claim("userId", user.getId())
+//                .signWith(secretKey)
+//                .compact();
+//    }
 
     public Claims parseClaims(String token) {
         return parser(token).getPayload();
