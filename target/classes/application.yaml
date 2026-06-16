@@ -3,13 +3,13 @@ spring:
     name: yoedu-real-estate-api
 
   datasource:
-    url: jdbc:mysql://localhost:3306/yoedu-real-estate?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
-    username: root
-    password: 
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:postgresql://localhost:5432/yoedu-real-estate
+    username: postgres
+    password: postgres # Change this to your local postgres password if needed
+    driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update # 
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
