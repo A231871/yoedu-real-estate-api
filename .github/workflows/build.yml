@@ -2,6 +2,7 @@ name: Build
 on:
   push:
     branches:
+      - main
       - develop
       - 'feat/**' # This also triggers for any feature branches you create
   pull_request:
