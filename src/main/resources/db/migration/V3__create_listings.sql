@@ -105,8 +105,8 @@ CREATE TABLE listing_views (
 );
 CREATE INDEX idx_listing_views_listing  ON listing_views(listing_id, viewed_at DESC);
 CREATE INDEX idx_listing_views_user     ON listing_views(user_id) WHERE user_id IS NOT NULL;
-CREATE UNIQUE INDEX idx_listing_views_dedup_user ON listing_views(listing_id, user_id, DATE(viewed_at)) WHERE user_id IS NOT NULL;
-CREATE UNIQUE INDEX idx_listing_views_dedup_ip ON listing_views(listing_id, ip_address, DATE(viewed_at)) WHERE user_id IS NULL;
+CREATE UNIQUE INDEX idx_listing_views_dedup_user ON listing_views(listing_id, user_id, ((viewed_at AT TIME ZONE 'UTC')::DATE)) WHERE user_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_listing_views_dedup_ip ON listing_views(listing_id, ip_address, ((viewed_at AT TIME ZONE 'UTC')::DATE)) WHERE user_id IS NULL;
 
 CREATE OR REPLACE FUNCTION increment_listing_view_count()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$

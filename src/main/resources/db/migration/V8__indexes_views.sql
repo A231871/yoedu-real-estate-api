@@ -30,7 +30,7 @@ SELECT
     ROUND(AVG(r.rating), 1)   AS avg_rating,
     COUNT(vs.id) FILTER (WHERE vs.status = 'COMPLETED') AS completed_viewings
 FROM listings l
-LEFT JOIN reviews r ON r.listing_id = l.id AND r.is_hidden = FALSE
+LEFT JOIN reviews r ON r.listing_id = l.id AND NOT r.is_hidden
 LEFT JOIN viewing_schedules vs ON vs.listing_id = l.id
 WHERE l.status = 'APPROVED'
 GROUP BY l.id;
@@ -50,7 +50,7 @@ SELECT
     c.renter_unread_count AS unread_count
 FROM conversations c
 JOIN listings l ON l.id = c.listing_id
-LEFT JOIN listing_images li ON li.listing_id = l.id AND li.is_primary = TRUE
+LEFT JOIN listing_images li ON li.listing_id = l.id AND li.is_primary
 WHERE c.renter_deleted_at IS NULL
 UNION ALL
 SELECT
@@ -67,7 +67,7 @@ SELECT
     c.host_unread_count AS unread_count
 FROM conversations c
 JOIN listings l ON l.id = c.listing_id
-LEFT JOIN listing_images li ON li.listing_id = l.id AND li.is_primary = TRUE
+LEFT JOIN listing_images li ON li.listing_id = l.id AND li.is_primary
 WHERE c.host_deleted_at IS NULL;
 
 CREATE MATERIALIZED VIEW admin_dashboard_stats AS
