@@ -22,14 +22,14 @@ jobs:
       checks: write
     steps:
       # Pinned to actions/checkout v4.2.2 SHA
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
       # Pinned to JetBrains/qodana-action v2026.1.0 SHA
       - name: 'Qodana Scan'
-        uses: JetBrains/qodana-action@5f3d989664fe03b2c9855c0a1fe4119082b1dd0e # Replace with the full 40-character SHA
+        uses: JetBrains/qodana-action@d7b5ec2fbec32197ef447c450e00589ed5f34fd5 # Replace with the full 40-character SHA
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
