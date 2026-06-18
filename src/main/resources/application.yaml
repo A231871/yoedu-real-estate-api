@@ -4,8 +4,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/yoedu-real-estate
-    username: postgres
-    password: postgres # Change this to your local postgres password if needed
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD} # Now securely injected
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -29,6 +29,6 @@ springdoc:
 app:
   jwt:
     issuer: estate-api
-    secret: estate-secret-key-12345678901234567890
+    secret: ${JWT_SECRET}
     access-token-ttl-minutes: 480
     refresh-token-ttl-days: 7
