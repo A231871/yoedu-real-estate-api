@@ -29,7 +29,7 @@ jobs:
 
       # Pinned to JetBrains/qodana-action v2026.1.0 SHA
       - name: 'Qodana Scan'
-        uses: JetBrains/qodana-action@d7b5ec2fbec32197ef447c450e00589ed5f34fd5 # Replace with the full 40-character SHA
+        uses: JetBrains/qodana-action@4861e015da555e86a72b862892aba6c2b93e6891 # Replace with the full 40-character SHA
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
