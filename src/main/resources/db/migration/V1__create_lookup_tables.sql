@@ -2,9 +2,11 @@
 -- V1 — Lookup / reference tables & Global Triggers
 -- ============================================================
 
+
+CREATE EXTENSION IF NOT EXISTS unaccent;
+CREATE EXTENSION IF NOT EXISTS btree_gist;
 CREATE EXTENSION IF NOT EXISTS cube;
 CREATE EXTENSION IF NOT EXISTS earthdistance;
-CREATE EXTENSION IF NOT EXISTS btree_gist;
 -- Global trigger function for updated_at
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$

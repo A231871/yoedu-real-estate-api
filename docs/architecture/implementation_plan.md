@@ -1,6 +1,6 @@
 # Real Estate Platform Implementation Plan
 
-This document outlines the detailed roadmap for the next phase of the Real Estate & Rental Platform backend. The database schema (V1-V9) and the base Spring Boot setup are complete. This plan divides the remaining work into 3 isolated development lanes to allow parallel work without merge conflicts, provides detailed task tickets, and enforces architectural alignment with the standard team practices.
+This document outlines the detailed roadmap for the next phase of the Real Estate & Rental Platform backend. The database schema (V1-V10) and the base Spring Boot setup are complete. This plan divides the remaining work into 3 isolated development lanes to allow parallel work without merge conflicts, provides detailed task tickets, and enforces architectural alignment with the standard team practices.
 
 ## Real Estate Platform - Execution Timeline Tree
 
@@ -11,7 +11,7 @@ Real Estate Platform - Chronological Execution Tree
 ├── Sprint 1 (Weeks 1-2): Foundation & High-Risk Core
 │   │
 │   ├── Week 1: Bootstrapping & Read Models
-│   │   ├── [Phase 0] Run Baseline Migrations (V1-V9) & PostGIS config (Team/Lead)
+│   │   ├── [Phase 0] Run Baseline Migrations (V1-V10) & PostGIS config (Team/Lead)
 │   │   ├── [Phase 0] Setup Spring Modulith Interfaces & Global Configs (Team/Lead)
 │   │   ├── [Dev 1] Task 1.1: Lookup Data APIs (Provinces, Amenities)
 │   │   └── [Dev 3] Task 3.1a: Basic Chat Persistence & User Profiles
@@ -31,7 +31,7 @@ Real Estate Platform - Chronological Execution Tree
 │   └── Week 4: Background Workers & Moderation
 │       ├── [Dev 1] Task 1.3b: S3 Presigned URLs & Async Image Compression Worker
 │       ├── [Dev 2] Task 2.3: Validated Reviews & Report Event Handoff
-│       └── [Dev 3] Task 3.3: Admin Dashboard (Moderation Queues & Envers Auditing)
+│       └── [Dev 3] Task 3.3 & 3.4: Admin Dashboard & Monetization/Transactions
 │
 └── Sprint 3 (Weeks 5-6): Event Choreography, Integration & Hardening
     │
@@ -59,7 +59,7 @@ Real Estate Platform - Chronological Execution Tree
 
 ## 1. Phase 0: Baseline Contracts & Isolation
 Before any feature work begins, the team must execute Phase 0:
-- **Baseline Migrations:** The initial V1-V9 schema must be merged to `main` to enforce a linear, chronological migration history. **CRITICAL:** Include `CREATE EXTENSION IF NOT EXISTS btree_gist;` so that PostgreSQL GiST indexes support the `=` operator for scalar types like UUIDs or BIGINTs.
+- **Baseline Migrations:** The initial V1-V10 schema must be merged to `main` to enforce a linear, chronological migration history. **CRITICAL:** Include `CREATE EXTENSION IF NOT EXISTS btree_gist;` so that PostgreSQL GiST indexes support the `=` operator for scalar types like UUIDs or BIGINTs. Also ensure `uuidv7` polyfills are in place for PostgreSQL 15 environments.
 - **Interface Segregation & Public API Contracts:** Do NOT centralize all interfaces into a shared `core` or `api` package (the "God module" anti-pattern). **CRITICAL:** Each module (Dev 1, 2, and 3) must expose its *own* inbound API (Interfaces/DTOs) that other modules can depend on. Devs will use standard Mockito for unit tests and simple stub classes for local boot during Phase 0. Do NOT over-complicate with `@Profile("dev")` beans.
 
 ## 2. Domain-Driven Delegation (Parallel Development Lanes)
@@ -70,15 +70,15 @@ To prevent Git merge conflicts and ensure clear boundaries, the backend features
 
 ### Dev 1: Core Listings & Location Domain
 **Focus:** Public search, listing management (CRUD), and lookup data.
-**Tables Owned/Interacted:** `listings`, `listing_images`, `listing_amenities`, `property_types`, `amenities`, `provinces`, `districts`, `wards`
+**Tables Owned/Interacted:** `listings`, `listing_images`, `listing_amenities`, `property_types`, `amenities`, `provinces`, `districts`, `wards`, `listing_packages`
 
 ### Dev 2: Booking & Interactions Domain
 **Focus:** Handling viewing schedules, user favorites, listing views, and reviews. Dev 2 handles the frontend API for reporting, but Dev 3 physically owns the data persistence.
 **Tables Owned/Interacted:** `viewing_schedules`, `favorites`, `listing_views`, `reviews`
 
 ### Dev 3: Messaging, Notifications & Admin Domain
-**Focus:** In-app messaging between users, system notifications, and admin moderation tools.
-**Tables Owned/Interacted:** `conversations`, `messages`, `notifications`, `push_tokens`, Envers `_aud` tables, `reports` (Strict Owner), `users`
+**Focus:** In-app messaging between users, system notifications, admin moderation tools, and revenue tracking (Transactions).
+**Tables Owned/Interacted:** `conversations`, `messages`, `notifications`, `push_tokens`, Envers `_aud` tables, `reports` (Strict Owner), `users`, `transactions`
 
 ---
 
@@ -178,6 +178,14 @@ To prevent Git merge conflicts and ensure clear boundaries, the backend features
   - **CRITICAL UI EVENTUAL CONSISTENCY WARNING:** The Modulith boundary rules strictly enforce pure Event-Driven Architecture for state changes. Therefore, Dev 3 MUST NOT make synchronous calls to Dev 1 to suspend listings. Dev 3 simply emits an async `ListingSuspensionRequestedEvent`. Because this is async, the Admin UI must gracefully handle eventual consistency (e.g., via Server-Sent Events or WebSockets to push a status update to the dashboard when the listing is fully suspended).
   - **CRITICAL:** Cascading Moderation - When an Admin suspends a listing, Dev 1 receives the event and handles the database update within its own transaction boundary, emitting a `ListingSuspendedEvent`. The Booking module listens to this asynchronously. **CRITICAL SAFETY:** Suspensions are often for severe violations (fraud, safety risks). Therefore, the system MUST immediately cancel all future `CONFIRMED` viewings and notify the renter. **CRITICAL PERFORMANCE:** Suspending an agency listing might cancel hundreds of viewings. Doing this in a single listener might time out the database transaction. This specific event requires **asynchronous batching** or a reliable Message Queue (RabbitMQ/Redis) to handle gracefully.
   - Read-only endpoint to fetch recent audit logs. **CRITICAL:** Do NOT write manual insert statements. Note that Spring Data JPA Auditing only populates `@CreatedBy` columns; it does NOT write standalone log rows. To automatically capture full before/after states, you must use **Hibernate Envers** (`@Audited`). Because Envers creates a separate table for every audited entity, **drop the generic `audit_logs` table from the schema plan**. The Flyway migrations must instead explicitly create `listings_aud`, `users_aud`, etc., to natively support Envers. **MODULITH ENCAPSULATION CRITICAL:** Dev 3 (Admin) CANNOT query `listings_aud` directly using `AuditReader.getRevisions(Listing.class, id)`. Referencing Dev 1's internal `@Entity` triggers a `ModulithException` and fails the build. Querying via raw SQL introduces severe schema coupling. Instead, Dev 1 MUST expose a `ListingAuditApi` interface (returning immutable `ListingAuditSnapshot` DTOs) within its own module. Dev 3's Admin controller should orchestrate read-calls to the respective module APIs to aggregate logs while maintaining strict encapsulation.
+
+#### Task 3.4: Monetization & Transactions
+- **Tables:** `transactions`, `listing_packages`
+- **Required Layers:** `TransactionController`, `TransactionService`, Repositories.
+- **Acceptance Criteria:**
+  - Build endpoints to fetch active `listing_packages` so users can choose a promotion package when creating/upgrading a listing.
+  - POST endpoint to create a `Transaction` when a user purchases a package. This should integrate with a payment gateway (or simulate one for now).
+  - Admin endpoints to view total revenue, list all transactions, and refund/cancel transactions. Ensure transaction status changes emit relevant domain events.
 
 ---
 
