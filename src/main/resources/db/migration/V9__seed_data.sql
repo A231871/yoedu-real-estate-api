@@ -80,7 +80,7 @@ INSERT INTO districts (province_id, name, slug, code) VALUES
     (58, 'Quận 4',         'quan-4',         '762'),
     (58, 'Quận 5',         'quan-5',         '763'),
     (58, 'Quận 6',         'quan-6',         '764'),
-    (58, 'Quận 7',         'quan-7',         '765'),
+    (58, 'Quận 7',         'quan-7',         '778'),
     (58, 'Quận 8',         'quan-8',         '766'),
     (58, 'Quận 9',         'quan-9',         '767'),
     (58, 'Quận 10',        'quan-10',        '768'),
@@ -88,7 +88,7 @@ INSERT INTO districts (province_id, name, slug, code) VALUES
     (58, 'Quận 12',        'quan-12',        '771'),
     (58, 'Bình Chánh',     'binh-chanh',     '785'),
     (58, 'Bình Tân',       'binh-tan',       '776'),
-    (58, 'Bình Thạnh',     'binh-thanh',     '765'),
+    (58, 'Bình Thạnh',     'binh-thanh',     '773'),
     (58, 'Gò Vấp',         'go-vap',         '772'),
     (58, 'Hóc Môn',        'hoc-mon',        '783'),
     (58, 'Nhà Bè',         'nha-be',         '787'),
@@ -119,14 +119,21 @@ INSERT INTO wards (district_id, name, slug) VALUES
 -- ----------------------------------------------------------------
 -- Dev seed: 1 admin user (password = "Admin@123" bcrypt)
 -- ----------------------------------------------------------------
-INSERT INTO users (id, email, password_hash, full_name, phone, role, status, email_verified) VALUES
+INSERT INTO users (id, email, password_hash, full_name, phone, roles, status, email_verified) VALUES
     (
-        gen_random_uuid(),
+        uuidv7(),
         'admin@nhatrovn.dev',
         '$2a$12$RnZwxT7sKqP1QbGKzY3.5.KYm8sZ9aW1V7bN2xM6cJ4dE8fH0iL3q',
         'Admin NhaTroVN',
         '0901234567',
-        'ADMIN',
+        '{ADMIN}',
         'ACTIVE',
         TRUE
     );
+
+-- ----------------------------------------------------------------
+-- Reset sequences to prevent Primary Key constraint errors
+-- ----------------------------------------------------------------
+SELECT setval('provinces_id_seq', (SELECT MAX(id) FROM provinces));
+SELECT setval('districts_id_seq', (SELECT MAX(id) FROM districts));
+SELECT setval('wards_id_seq', (SELECT MAX(id) FROM wards));
