@@ -3,9 +3,9 @@
 -- ============================================================
 
 CREATE TABLE reviews (
-    id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    id            UUID         PRIMARY KEY DEFAULT uuidv7(),
     listing_id    UUID         NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
-    reviewer_id   UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reviewer_id   UUID         REFERENCES users(id) ON DELETE SET NULL,
     schedule_id   UUID         REFERENCES viewing_schedules(id) ON DELETE SET NULL,
 
     rating        SMALLINT     NOT NULL CHECK (rating BETWEEN 1 AND 5),
@@ -24,53 +24,40 @@ CREATE TABLE reviews (
 
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT uq_review_per_listing UNIQUE (listing_id, reviewer_id)
+    deleted_at    TIMESTAMPTZ
 );
 
+CREATE UNIQUE INDEX idx_reviews_unique_schedule ON reviews(schedule_id) WHERE schedule_id IS NOT NULL AND deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_reviews_one_per_user ON reviews(listing_id, reviewer_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_reviews_listing   ON reviews(listing_id, created_at DESC) WHERE is_hidden = FALSE;
 CREATE INDEX idx_reviews_reviewer  ON reviews(reviewer_id);
 CREATE INDEX idx_reviews_rating    ON reviews(listing_id, rating) WHERE is_hidden = FALSE;
 CREATE TRIGGER trg_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-CREATE OR REPLACE FUNCTION check_review_eligibility()
+CREATE OR REPLACE FUNCTION check_review_owner()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
-    -- If schedule_id is not provided, try to auto-detect a completed schedule
-    IF NEW.schedule_id IS NULL THEN
-        SELECT id INTO NEW.schedule_id FROM viewing_schedules 
-        WHERE renter_id = NEW.reviewer_id AND listing_id = NEW.listing_id AND status = 'COMPLETED'
-        LIMIT 1;
-        
-        IF NEW.schedule_id IS NULL THEN
-            RAISE EXCEPTION 'A completed viewing schedule is required to submit a review';
+    IF NEW.reviewer_id IN (SELECT owner_id FROM listings WHERE id = NEW.listing_id UNION SELECT agent_id FROM listings WHERE id = NEW.listing_id) THEN
+        RAISE EXCEPTION 'Owner/Agent cannot review their own listing';
+    END IF;
+    IF NEW.schedule_id IS NOT NULL THEN
+        IF NOT EXISTS (SELECT 1 FROM viewing_schedules WHERE id = NEW.schedule_id AND listing_id = NEW.listing_id AND client_id = NEW.reviewer_id AND status = 'COMPLETED') THEN
+            RAISE EXCEPTION 'Schedule does not belong to this user/listing or is not completed';
         END IF;
     END IF;
-
-    -- Verify that the schedule is completed and belongs to the reviewer and listing
-    IF NOT EXISTS (
-        SELECT 1 FROM viewing_schedules
-        WHERE id = NEW.schedule_id
-          AND renter_id = NEW.reviewer_id
-          AND listing_id = NEW.listing_id
-          AND status = 'COMPLETED'
-    ) THEN
-        RAISE EXCEPTION 'The provided viewing schedule is not completed or invalid';
-    END IF;
-
-    NEW.is_verified := TRUE;
     RETURN NEW;
 END;
 $$;
-CREATE TRIGGER trg_check_review_eligibility BEFORE INSERT ON reviews FOR EACH ROW EXECUTE FUNCTION check_review_eligibility();
+CREATE TRIGGER trg_check_review_owner BEFORE INSERT ON reviews FOR EACH ROW EXECUTE FUNCTION check_review_owner();
 
 CREATE TABLE reports (
-    id            UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    id            UUID          PRIMARY KEY DEFAULT uuidv7(),
     listing_id    UUID          NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
-    reporter_id   UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reporter_id   UUID          REFERENCES users(id) ON DELETE SET NULL,
 
     reason        VARCHAR(50)   NOT NULL CHECK (reason IN ('FRAUD', 'DUPLICATE', 'WRONG_INFO', 'INAPPROPRIATE_CONTENT', 'WRONG_PRICE', 'ALREADY_RENTED', 'OTHER')),
     description   TEXT,
-    evidence_urls TEXT[],
+    evidence_urls VARCHAR(500)[],
 
     status        VARCHAR(50)   NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED')),
     admin_note    TEXT,
@@ -79,24 +66,13 @@ CREATE TABLE reports (
 
     created_at    TIMESTAMPTZ   NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ   NOT NULL DEFAULT now(),
-    CONSTRAINT uq_report_per_user UNIQUE (listing_id, reporter_id)
+    deleted_at    TIMESTAMPTZ,
+    CONSTRAINT chk_evidence_urls_length CHECK (coalesce(array_length(evidence_urls, 1), 0) <= 10)
 );
 
+CREATE UNIQUE INDEX uq_report_pending ON reports(listing_id, reporter_id) WHERE status = 'PENDING' AND deleted_at IS NULL;
 CREATE INDEX idx_reports_listing  ON reports(listing_id);
 CREATE INDEX idx_reports_status   ON reports(status, created_at DESC);
 CREATE INDEX idx_reports_reporter ON reports(reporter_id);
 CREATE TRIGGER trg_reports_updated_at BEFORE UPDATE ON reports FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-CREATE OR REPLACE FUNCTION auto_flag_listing_on_reports()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-DECLARE
-    report_count INT;
-BEGIN
-    SELECT COUNT(*) INTO report_count FROM reports WHERE listing_id = NEW.listing_id AND status = 'PENDING';
-    IF report_count >= 5 THEN
-        UPDATE listings SET status = 'PENDING', updated_at = now() WHERE id = NEW.listing_id AND status = 'APPROVED';
-    END IF;
-    RETURN NEW;
-END;
-$$;
-CREATE TRIGGER trg_auto_flag_listing AFTER INSERT ON reports FOR EACH ROW EXECUTE FUNCTION auto_flag_listing_on_reports();
