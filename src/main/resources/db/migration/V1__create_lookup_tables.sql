@@ -16,43 +16,45 @@ BEGIN
 END;
 $$;
 
+-- 0. Administrative Units
+CREATE TABLE administrative_units (
+    id            INT          PRIMARY KEY,
+    full_name     VARCHAR(255) NOT NULL,
+    full_name_en  VARCHAR(255),
+    short_name    VARCHAR(100),
+    short_name_en VARCHAR(100),
+    code_name     VARCHAR(100),
+    code_name_en  VARCHAR(100)
+);
+
 -- 1. Provinces
 CREATE TABLE provinces (
-    id         SERIAL       PRIMARY KEY,
-    name       VARCHAR(100) NOT NULL,
-    slug       VARCHAR(100) NOT NULL UNIQUE,
-    code       VARCHAR(10)  NOT NULL UNIQUE,
-    created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ  NOT NULL DEFAULT now()
+    code                   VARCHAR(20)  PRIMARY KEY,
+    name                   VARCHAR(255) NOT NULL,
+    name_en                VARCHAR(255),
+    full_name              VARCHAR(255) NOT NULL,
+    full_name_en           VARCHAR(255),
+    code_name              VARCHAR(100),
+    administrative_unit_id INT          REFERENCES administrative_units(id) ON DELETE SET NULL,
+    created_at             TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    updated_at             TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 CREATE TRIGGER trg_provinces_updated_at BEFORE UPDATE ON provinces FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- 2. Districts
-CREATE TABLE districts (
-    id          SERIAL       PRIMARY KEY,
-    province_id INT          NOT NULL REFERENCES provinces(id) ON DELETE CASCADE,
-    name        VARCHAR(100) NOT NULL,
-    slug        VARCHAR(100) NOT NULL,
-    code        VARCHAR(10),
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    UNIQUE (province_id, slug)
-);
-CREATE INDEX idx_districts_province ON districts(province_id);
-CREATE TRIGGER trg_districts_updated_at BEFORE UPDATE ON districts FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
--- 3. Wards
+-- 2. Wards
 CREATE TABLE wards (
-    id          SERIAL       PRIMARY KEY,
-    district_id INT          NOT NULL REFERENCES districts(id) ON DELETE CASCADE,
-    name        VARCHAR(100) NOT NULL,
-    slug        VARCHAR(100) NOT NULL,
-    code        VARCHAR(10),
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    UNIQUE (district_id, slug)
+    code                   VARCHAR(20)  PRIMARY KEY,
+    name                   VARCHAR(255) NOT NULL,
+    name_en                VARCHAR(255),
+    full_name              VARCHAR(255),
+    full_name_en           VARCHAR(255),
+    code_name              VARCHAR(100),
+    province_code          VARCHAR(20)  REFERENCES provinces(code) ON DELETE CASCADE,
+    administrative_unit_id INT          REFERENCES administrative_units(id) ON DELETE SET NULL,
+    created_at             TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    updated_at             TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_wards_district ON wards(district_id);
+CREATE INDEX idx_wards_province ON wards(province_code);
 CREATE TRIGGER trg_wards_updated_at BEFORE UPDATE ON wards FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- 4. Property types

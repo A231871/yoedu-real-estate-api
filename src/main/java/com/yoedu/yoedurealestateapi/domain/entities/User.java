@@ -1,18 +1,16 @@
 package com.yoedu.yoedurealestateapi.domain.entities;
 
 import com.yoedu.yoedurealestateapi.domain.enums.AuthProvider;
+import com.yoedu.yoedurealestateapi.domain.enums.UserRole;
 import jakarta.persistence.*;
-import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "users")
-public class User extends AuditableEntity {
+public class User extends ArchivableEntity {
 
     @Column(name = "email", nullable = false, length = 255)
     private String email;
@@ -36,13 +34,9 @@ public class User extends AuditableEntity {
     @Column(name = "provider_id", length = 255)
     private String providerId;
 
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(
-        name = "roles",
-        nullable = false,
-        columnDefinition = "character varying(50)[]"
-    )
-    private String[] roles = new String[] { "RENTER" };
+    @Enumerated(EnumType.STRING)
+    @Column(name = "user_role", nullable = false)
+    private UserRole userRole = UserRole.GUEST;
 
     @Column(name = "status", nullable = false, length = 50)
     private String status = "PENDING_VERIFY";
@@ -52,7 +46,4 @@ public class User extends AuditableEntity {
 
     @Column(name = "bio", columnDefinition = "text")
     private String bio;
-
-    @Column(name = "deleted_at")
-    private Instant deletedAt;
 }
