@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
@@ -18,9 +19,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleNotFound(
-        NotFoundException ex
-    ) {
+    public ResponseEntity<ApiResponse<Void>> handleNotFound(NotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
             ApiResponse.error(ex.getMessage())
         );
@@ -87,12 +86,17 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
-    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
-    public ResponseEntity<ApiResponse<Void>> handleOptimisticLockingFailure(
-            org.springframework.orm.ObjectOptimisticLockingFailureException ex) {
+    /**
+     * Maps @Version optimistic locking failures to HTTP 409 Conflict.
+     * This protects against concurrent updates on ViewingSchedule and other versioned entities.
+     */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLocking(
+            ObjectOptimisticLockingFailureException ex) {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error("The record was modified by another user. Please refresh and try again."));
+                .body(ApiResponse.error(
+                    "The record was modified by another user. Please refresh and try again."));
     }
 
     @ExceptionHandler(Exception.class)

@@ -1,4 +1,4 @@
-package com.yoedu.yoedurealestateapi.domain.entities;
+package com.yoedu.yoedurealestateapi.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;

@@ -1,4 +1,4 @@
-package com.yoedu.yoedurealestateapi.domain.entities;
+package com.yoedu.yoedurealestateapi.domain;
 
 import jakarta.persistence.*;
 import java.util.UUID;
@@ -16,4 +16,7 @@ public abstract class BaseEntity {
     @UuidGenerator
     @Column(updatable = false, nullable = false)
     private UUID id;
+
+    @Transient
+    private boolean deleted = false;
 }
