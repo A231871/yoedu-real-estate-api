@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -45,5 +46,14 @@ public class ListingController {
     ) {
         listingService.createListing(request);
         return ApiResponse.success("Created new listing");
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<String> updateListing(
+        @PathVariable String id,
+        @Valid @RequestBody ListingUpsertRequest request
+    ) {
+        listingService.updateListing(id, request);
+        return ApiResponse.success("Updated listing");
     }
 }

@@ -12,4 +12,6 @@ public interface ListingService {
     Optional<ListingDetailResponse> getListingDetail(String id);
 
     void createListing(ListingUpsertRequest request);
+
+    void updateListing(String id, ListingUpsertRequest request);
 }

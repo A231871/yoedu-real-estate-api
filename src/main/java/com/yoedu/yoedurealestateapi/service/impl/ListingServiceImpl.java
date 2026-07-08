@@ -214,4 +214,14 @@ public class ListingServiceImpl implements ListingService {
         Listing newListing = new Listing();
         apply(request, newListing);
     }
+
+    @Override
+    public void updateListing(String id, ListingUpsertRequest request) {
+        Listing currentListing = listingRepository
+            .findById(UUID.fromString(id))
+            .orElseThrow(() ->
+                new NotFoundException("Listing with id " + id + " not found")
+            );
+        apply(request, currentListing);
+    }
 }
