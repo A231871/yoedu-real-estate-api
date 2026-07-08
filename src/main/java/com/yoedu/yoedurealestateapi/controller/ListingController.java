@@ -9,6 +9,7 @@ import com.yoedu.yoedurealestateapi.service.ListingService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -55,5 +56,11 @@ public class ListingController {
     ) {
         listingService.updateListing(id, request);
         return ApiResponse.success("Updated listing");
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<String> deleteListing(@PathVariable String id) {
+        listingService.deleteListing(id);
+        return ApiResponse.success("Deleted listing");
     }
 }

@@ -14,4 +14,6 @@ public interface ListingService {
     void createListing(ListingUpsertRequest request);
 
     void updateListing(String id, ListingUpsertRequest request);
+
+    void deleteListing(String id);
 }
