@@ -21,10 +21,8 @@ import java.util.UUID;
 @Table(name = "viewing_schedules")
 public class ViewingSchedule extends AuditableEntity {
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "listing_id", nullable = false)
-    private Listing listing;
-
+    @Column(name = "listing_id", nullable = false)
+    private UUID listingId;
 
     @Column(name = "client_id", nullable = false)
     private UUID clientId;

@@ -2,49 +2,54 @@ package com.yoedu.yoedurealestateapi.service.impl;
 
 import com.yoedu.yoedurealestateapi.common.exception.BadRequestException;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
-
 import com.yoedu.yoedurealestateapi.domain.entities.Listing;
 import com.yoedu.yoedurealestateapi.domain.entities.ViewingSchedule;
+import com.yoedu.yoedurealestateapi.dto.UpsertViewingScheduleRequest;
 import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.ViewingScheduleRepository;
 import com.yoedu.yoedurealestateapi.service.ViewingScheduleService;
-import com.yoedu.yoedurealestateapi.dto.UpsertViewingScheduleRequest;
-import com.yoedu.yoedurealestateapi.dto.ViewingScheduleResponse;
-import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Service thuần business logic, trả về entity.
+ * Không phụ thuộc ModelMapper — Controller sẽ lo việc map sang DTO.
+ */
 @Service
 @RequiredArgsConstructor
 public class ViewingScheduleServiceImpl implements ViewingScheduleService {
 
     private final ViewingScheduleRepository viewingScheduleRepository;
     private final ListingRepository listingRepository;
-    private final ModelMapper modelMapper; // Tiêm ModelMapper vào đây
 
     @Override
     @Transactional
-    public ViewingScheduleResponse createSchedule(UpsertViewingScheduleRequest request, UUID clientId) {
+    public ViewingSchedule createSchedule(UpsertViewingScheduleRequest request, UUID clientId) {
         Listing listing = listingRepository.findById(request.getListingId())
                 .filter(l -> l.getDeletedAt() == null)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy tin đăng hoặc tin đăng đã bị xóa"));
+                .orElseThrow(() -> new NotFoundException(
+                    "Không tìm thấy tin đăng hoặc tin đăng đã bị xóa"));
 
         if (!"APPROVED".equals(listing.getStatus())) {
-            throw new BadRequestException("Chỉ có thể đặt lịch hẹn cho các tin đăng đã được phê duyệt");
+            throw new BadRequestException(
+                "Chỉ có thể đặt lịch hẹn cho các tin đăng đã được phê duyệt");
         }
 
         ZoneId zoneId;
         try {
             zoneId = ZoneId.of(request.getTimezoneId());
         } catch (DateTimeException e) {
-            throw new BadRequestException("Múi giờ không hợp lệ: " + request.getTimezoneId());
+            throw new BadRequestException(
+                "Múi giờ không hợp lệ: " + request.getTimezoneId());
         }
 
         ZonedDateTime localZonedDateTime = request.getScheduledLocalTime().atZone(zoneId);
@@ -54,20 +59,22 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
             throw new BadRequestException("Không thể đặt lịch hẹn trong quá khứ");
         }
 
-        int duration = (request.getDurationMinutes() != null) ? request.getDurationMinutes() : 60;
+        int duration = (request.getDurationMinutes() != null)
+            ? request.getDurationMinutes() : 60;
         if (duration <= 0) {
             throw new BadRequestException("Thời lượng lịch hẹn phải lớn hơn 0");
         }
         Instant utcEnd = localZonedDateTime.plusMinutes(duration).toInstant();
 
-        // ĐÃ SỬA LỖI CÚ PHÁP Ở ĐÂY
         ViewingSchedule schedule = new ViewingSchedule();
-        schedule.setListing(listing); // <-- Dùng setListing()
+        schedule.setListingId(listing.getId());
         schedule.setClientId(clientId);
 
-        UUID hostId = (listing.getAgentId() != null) ? listing.getAgentId() : listing.getOwnerId();
+        UUID hostId = (listing.getAgentId() != null)
+            ? listing.getAgentId() : listing.getOwnerId();
         if (clientId.equals(hostId)) {
-            throw new BadRequestException("Khách thuê và Chủ nhà/Môi giới không được phép trùng nhau");
+            throw new BadRequestException(
+                "Khách thuê và Chủ nhà/Môi giới không được phép trùng nhau");
         }
         schedule.setHostId(hostId);
 
@@ -79,30 +86,28 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         schedule.setStatus("PENDING");
         schedule.setReminderSent(false);
 
-        ViewingSchedule savedSchedule = viewingScheduleRepository.save(schedule);
-        return convertToDto(savedSchedule); // Map ngay trong Transaction
+        return viewingScheduleRepository.save(schedule);
     }
 
     @Override
     @Transactional
-    public ViewingScheduleResponse confirmSchedule(UUID id) {
+    public ViewingSchedule confirmSchedule(UUID id) {
         ViewingSchedule schedule = getActiveSchedule(id);
 
         if (!"PENDING".equals(schedule.getStatus())) {
-            throw new BadRequestException("Lịch hẹn hiện tại không ở trạng thái PENDING.");
+            throw new BadRequestException(
+                "Lịch hẹn hiện tại không ở trạng thái PENDING.");
         }
 
         schedule.setStatus("CONFIRMED");
         schedule.setConfirmedAt(Instant.now());
 
-        // KHÔNG CẦN Hibernate.initialize NỮA
-        ViewingSchedule savedSchedule = viewingScheduleRepository.save(schedule);
-        return convertToDto(savedSchedule); // Map ngay trong Transaction
+        return viewingScheduleRepository.save(schedule);
     }
 
     @Override
     @Transactional
-    public ViewingScheduleResponse cancelSchedule(UUID id, String reason, UUID actorId) {
+    public ViewingSchedule cancelSchedule(UUID id, String reason, UUID actorId) {
         ViewingSchedule schedule = getActiveSchedule(id);
 
         if ("CANCELLED".equals(schedule.getStatus())) {
@@ -117,25 +122,44 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         schedule.setCancelledBy(actorId);
         schedule.setCancelledAt(Instant.now());
 
-        // KHÔNG CẦN Hibernate.initialize NỮA
-        ViewingSchedule savedSchedule = viewingScheduleRepository.save(schedule);
-        return convertToDto(savedSchedule); // Map ngay trong Transaction
+        return viewingScheduleRepository.save(schedule);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ViewingSchedule getScheduleById(UUID id) {
+        return getActiveSchedule(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ViewingSchedule> getHostSchedules(
+        UUID hostId, List<String> statuses, Pageable pageable) {
+        if (statuses == null || statuses.isEmpty()) {
+            return viewingScheduleRepository
+                .findByHostIdAndDeletedAtIsNullOrderByScheduledStartDesc(hostId, pageable);
+        }
+        return viewingScheduleRepository
+            .findByHostIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
+                hostId, statuses, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ViewingSchedule> getClientSchedules(
+        UUID clientId, List<String> statuses, Pageable pageable) {
+        if (statuses == null || statuses.isEmpty()) {
+            return viewingScheduleRepository
+                .findByClientIdAndDeletedAtIsNullOrderByScheduledStartDesc(clientId, pageable);
+        }
+        return viewingScheduleRepository
+            .findByClientIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
+                clientId, statuses, pageable);
     }
 
     private ViewingSchedule getActiveSchedule(UUID id) {
-        return viewingScheduleRepository.findById(id)
-                .filter(s -> s.getDeletedAt() == null)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy lịch hẹn hoặc lịch hẹn đã bị xóa"));
-    }
-
-    // MAP TẠI ĐÂY SẼ KHÔNG BỊ LỖI LAZY VÌ ĐANG Ở TRONG @Transactional
-    private ViewingScheduleResponse convertToDto(ViewingSchedule entity) {
-        ViewingScheduleResponse dto = modelMapper.map(entity, ViewingScheduleResponse.class);
-        if (entity.getListing() != null) {
-            dto.setListingId(entity.getListing().getId());
-        }
-        dto.setScheduledUtcTime(entity.getScheduledStart());
-        dto.setScheduledEndUtcTime(entity.getScheduledEnd());
-        return dto;
+        return viewingScheduleRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new NotFoundException(
+                    "Không tìm thấy lịch hẹn hoặc lịch hẹn đã bị xóa"));
     }
 }
