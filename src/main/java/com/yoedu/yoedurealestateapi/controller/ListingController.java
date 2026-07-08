@@ -30,7 +30,7 @@ public class ListingController {
 
     @GetMapping("/{id}")
     public ApiResponse<ListingDetailResponse> getListingDetail(
-        @PathVariable Long id
+        @PathVariable String id
     ) {
         ListingDetailResponse listingDetailResponse = listingService
             .getListingDetail(id)

@@ -29,7 +29,7 @@ public record ListingDetailResponse(
 
     BigDecimal currentPrice,
 
-    List<ListingMediaDto> mediaItems,
+    List<ListingMediaDto> listingMediaDtos,
 
     List<String> amenities
 ) {}

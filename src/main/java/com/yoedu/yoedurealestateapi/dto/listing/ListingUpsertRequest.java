@@ -26,6 +26,9 @@ public class ListingUpsertRequest {
     @NotBlank
     private String description;
 
+    @NotBlank
+    private String address;
+
     @NotNull
     @DecimalMin(value = "0.01")
     private BigDecimal area;
@@ -48,12 +51,9 @@ public class ListingUpsertRequest {
     @NotBlank
     private String wardCode;
 
-    @NotBlank
-    private String provinceCode;
-
     private Set<String> amenityIds = new HashSet<>();
 
-    private Set<ListingMediaDto> mediaItems = new HashSet<>();
+    private Set<ListingMediaDto> listingMediaDtos = new HashSet<>();
 
     @NotNull
     @DecimalMin(value = "0.00")

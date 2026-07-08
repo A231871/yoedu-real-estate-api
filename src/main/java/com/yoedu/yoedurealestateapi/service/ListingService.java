@@ -9,7 +9,7 @@ import java.util.Optional;
 public interface ListingService {
     List<ListingSummaryResponse> getListingSummaries();
 
-    Optional<ListingDetailResponse> getListingDetail(Long id);
+    Optional<ListingDetailResponse> getListingDetail(String id);
 
     void createListing(ListingUpsertRequest request);
 }
