@@ -2,6 +2,7 @@ package com.yoedu.yoedurealestateapi.domain.entities;
 
 import com.yoedu.yoedurealestateapi.domain.enums.AuthProvider;
 import com.yoedu.yoedurealestateapi.domain.enums.UserRole;
+import com.yoedu.yoedurealestateapi.domain.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -38,8 +39,9 @@ public class User extends ArchivableEntity {
     @Column(name = "user_role", nullable = false)
     private UserRole userRole = UserRole.GUEST;
 
-    @Column(name = "status", nullable = false, length = 50)
-    private String status = "PENDING_VERIFY";
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private UserStatus status = UserStatus.PENDING_VERIFY;
 
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;
