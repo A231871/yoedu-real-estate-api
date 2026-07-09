@@ -3,8 +3,9 @@ package com.yoedu.yoedurealestateapi.service.impl;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
 import com.yoedu.yoedurealestateapi.common.exception.UserBannedException;
 import com.yoedu.yoedurealestateapi.domain.entities.User;
-import com.yoedu.yoedurealestateapi.dto.UpdateProfileRequest;
-import com.yoedu.yoedurealestateapi.dto.UserProfileResponse;
+import com.yoedu.yoedurealestateapi.domain.enums.UserStatus;
+import com.yoedu.yoedurealestateapi.dto.user.UpdateProfileRequest;
+import com.yoedu.yoedurealestateapi.dto.user.UserProfileResponse;
 import com.yoedu.yoedurealestateapi.mapper.UserProfileMapper;
 import com.yoedu.yoedurealestateapi.repository.UserRepository;
 import com.yoedu.yoedurealestateapi.service.UserProfileService;
@@ -41,7 +42,7 @@ public class UserProfileServiceImpl implements UserProfileService {
   @Transactional(readOnly = true)
   public void checkBanStatus(UUID userId) {
     User user = getUserById(userId);
-    if (user.getStatus() == User.Status.SUSPENDED) {
+    if (user.getStatus() == UserStatus.SUSPENDED) {
       throw new UserBannedException("User is suspended and cannot perform this action.");
     }
   }

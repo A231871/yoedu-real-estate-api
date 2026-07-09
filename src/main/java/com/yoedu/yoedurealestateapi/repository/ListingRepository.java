@@ -1,7 +1,7 @@
 package com.yoedu.yoedurealestateapi.repository;
 
-import com.yoedu.yoedurealestateapi.domain.entities.User;
+import com.yoedu.yoedurealestateapi.domain.entities.Listing;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface UserRepository extends JpaRepository<User, UUID> {}
+public interface ListingRepository extends JpaRepository<Listing, UUID> {}

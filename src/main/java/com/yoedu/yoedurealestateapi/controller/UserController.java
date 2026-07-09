@@ -1,8 +1,8 @@
-package com.yoedu.yoedurealestateapi.controllers;
+package com.yoedu.yoedurealestateapi.controller;
 
-import com.yoedu.yoedurealestateapi.common.exception.ApiResponse;
-import com.yoedu.yoedurealestateapi.dto.UpdateProfileRequest;
-import com.yoedu.yoedurealestateapi.dto.UserProfileResponse;
+import com.yoedu.yoedurealestateapi.common.ApiResponse;
+import com.yoedu.yoedurealestateapi.dto.user.UpdateProfileRequest;
+import com.yoedu.yoedurealestateapi.dto.user.UserProfileResponse;
 import com.yoedu.yoedurealestateapi.service.UserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,7 +33,7 @@ public class UserController {
     // Assuming the username in the JWT is the UUID string
     UUID userId = UUID.fromString(username);
     UserProfileResponse response = userProfileService.getProfile(userId);
-    return ResponseEntity.ok(ApiResponse.ok(response));
+    return ResponseEntity.ok(ApiResponse.success(response));
   }
 
   @PutMapping
@@ -43,6 +43,6 @@ public class UserController {
       @Valid @RequestBody UpdateProfileRequest request) {
     UUID userId = UUID.fromString(username);
     UserProfileResponse response = userProfileService.updateProfile(userId, request);
-    return ResponseEntity.ok(ApiResponse.ok("Profile updated successfully", response));
+    return ResponseEntity.ok(ApiResponse.success("Profile updated successfully", response));
   }
 }

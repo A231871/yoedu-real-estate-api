@@ -1,7 +1,7 @@
 package com.yoedu.yoedurealestateapi.service;
 
-import com.yoedu.yoedurealestateapi.dto.UpdateProfileRequest;
-import com.yoedu.yoedurealestateapi.dto.UserProfileResponse;
+import com.yoedu.yoedurealestateapi.dto.user.UpdateProfileRequest;
+import com.yoedu.yoedurealestateapi.dto.user.UserProfileResponse;
 
 import java.util.UUID;
 

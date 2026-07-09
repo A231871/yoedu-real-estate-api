@@ -1,72 +1,51 @@
 package com.yoedu.yoedurealestateapi.domain.entities;
 
 import com.yoedu.yoedurealestateapi.domain.enums.AuthProvider;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
-import jakarta.persistence.Version;
+import com.yoedu.yoedurealestateapi.domain.enums.UserRole;
+import com.yoedu.yoedurealestateapi.domain.enums.UserStatus;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.SQLRestriction;
-import org.hibernate.type.SqlTypes;
 
-import java.time.OffsetDateTime;
-import java.util.List;
-
-@Entity
-@Table(name = "users")
-@SQLRestriction("deleted_at IS NULL")
 @Getter
 @Setter
-public class User extends AuditableEntity {
+@Entity
+@Table(name = "users")
+public class User extends ArchivableEntity {
 
-  public enum Status {
-    ACTIVE, SUSPENDED, PENDING_VERIFY
-  }
+    @Column(name = "email", nullable = false, length = 255)
+    private String email;
 
-  @Column(name = "email", nullable = false)
-  private String email;
+    @Column(name = "password_hash", length = 255)
+    private String passwordHash;
 
-  @Column(name = "password_hash")
-  private String passwordHash;
+    @Column(name = "full_name", nullable = false, length = 150)
+    private String fullName;
 
-  @Column(name = "full_name", nullable = false)
-  private String fullName;
+    @Column(name = "phone", length = 20)
+    private String phone;
 
-  @Column(name = "phone")
-  private String phone;
+    @Column(name = "avatar_url", length = 500)
+    private String avatarUrl;
 
-  @Column(name = "avatar_url")
-  private String avatarUrl;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false, length = 50)
+    private AuthProvider authProvider = AuthProvider.LOCAL;
 
-  @Enumerated(EnumType.STRING)
-  @Column(name = "auth_provider", nullable = false)
-  private AuthProvider authProvider = AuthProvider.LOCAL;
+    @Column(name = "provider_id", length = 255)
+    private String providerId;
 
-  @Column(name = "provider_id")
-  private String providerId;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "user_role", nullable = false)
+    private UserRole userRole = UserRole.GUEST;
 
-  @JdbcTypeCode(SqlTypes.ARRAY)
-  @Column(name = "roles", nullable = false)
-  private List<String> roles;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private UserStatus status = UserStatus.PENDING_VERIFY;
 
-  @Enumerated(EnumType.STRING)
-  @Column(name = "status", nullable = false)
-  private Status status = Status.PENDING_VERIFY;
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
 
-  @Column(name = "email_verified", nullable = false)
-  private boolean emailVerified = false;
-
-  @Column(name = "bio", columnDefinition = "TEXT")
-  private String bio;
-
-  @Column(name = "deleted_at")
-  private OffsetDateTime deletedAt;
-
-  @Version
-  @Column(name = "version", nullable = false)
-  private Integer version = 0;
+    @Column(name = "bio", columnDefinition = "text")
+    private String bio;
 }
