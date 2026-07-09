@@ -63,7 +63,7 @@ CREATE TABLE property_types (
     name       VARCHAR(100) NOT NULL,
     slug       VARCHAR(100) NOT NULL UNIQUE,
     icon       VARCHAR(255),
-    sort_order SMALLINT     NOT NULL DEFAULT 0,
+    sort_order INTEGER     NOT NULL DEFAULT 0,
     is_active  BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ  NOT NULL DEFAULT now()
@@ -77,7 +77,7 @@ CREATE TABLE amenities (
     slug       VARCHAR(100) NOT NULL UNIQUE,
     icon       VARCHAR(255),
     category   VARCHAR(50),
-    sort_order SMALLINT     NOT NULL DEFAULT 0,
+    sort_order INTEGER     NOT NULL DEFAULT 0,
     is_active  BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ  NOT NULL DEFAULT now()

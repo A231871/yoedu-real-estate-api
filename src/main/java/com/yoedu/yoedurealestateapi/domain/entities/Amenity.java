@@ -37,7 +37,7 @@ public class Amenity {
     private String category;
 
     @Column(name = "sort_order", nullable = false)
-    private Short sortOrder = 0;
+    private Integer sortOrder = 0;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
