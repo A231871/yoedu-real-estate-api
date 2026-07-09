@@ -1,15 +1,15 @@
 package com.yoedu.yoedurealestateapi.common;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record ApiResponse<T>(
     boolean success,
     String message,
     T data,
-    LocalDateTime timestamp
+    Instant timestamp
 ) {
     public static <T> ApiResponse<T> success(String message, T data) {
-        return new ApiResponse<>(true, message, data, LocalDateTime.now());
+        return new ApiResponse<>(true, message, data, Instant.now());
     }
 
     public static <T> ApiResponse<T> success(T data) {
@@ -21,6 +21,6 @@ public record ApiResponse<T>(
     }
 
     public static ApiResponse<Void> error(String message) {
-        return new ApiResponse<>(false, message, null, LocalDateTime.now());
+        return new ApiResponse<>(false, message, null, Instant.now());
     }
 }

@@ -19,7 +19,8 @@ import com.yoedu.yoedurealestateapi.repository.PropertyTypeRepository;
 import com.yoedu.yoedurealestateapi.repository.UserRepository;
 import com.yoedu.yoedurealestateapi.repository.WardRepository;
 import com.yoedu.yoedurealestateapi.service.ListingService;
-import java.time.LocalDateTime;
+
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -240,6 +241,6 @@ public class ListingServiceImpl implements ListingService {
             .orElseThrow(() ->
                 new NotFoundException("Listing with id " + id + " not found")
             );
-        currentListing.setDeletedAt(LocalDateTime.now());
+        currentListing.setDeletedAt(Instant.now());
     }
 }

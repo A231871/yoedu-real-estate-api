@@ -2,7 +2,8 @@ package com.yoedu.yoedurealestateapi.domain.entities;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
-import java.time.LocalDateTime;
+
+import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,5 +13,5 @@ import lombok.Setter;
 public abstract class ArchivableEntity extends AuditableEntity {
 
     @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
 }
