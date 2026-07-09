@@ -17,12 +17,12 @@ spring:
         format_sql: true
         default_batch_fetch_size: 100
 
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
-    default-schema: public
-    schemas: public
-    locations: classpath:db/migration
+flyway:
+  enabled: true
+  baseline-on-migrate: true
+  default-schema: public
+  schemas: public
+  locations: classpath:db/migration
 
 springdoc:
   api-docs:
@@ -30,6 +30,10 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     operations-sorter: method
+
+server:
+  servlet:
+    context-path: /api
 
 app:
   jwt:

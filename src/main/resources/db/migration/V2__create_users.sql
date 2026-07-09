@@ -11,7 +11,7 @@ CREATE TABLE users (
     avatar_url        VARCHAR(500),
     auth_provider     VARCHAR(50)  NOT NULL DEFAULT 'LOCAL' CHECK (auth_provider IN ('LOCAL', 'GOOGLE', 'APPLE', 'FACEBOOK')),
     provider_id       VARCHAR(255),
-    roles             VARCHAR(50)[] NOT NULL DEFAULT '{RENTER}' CONSTRAINT chk_valid_roles CHECK (roles <@ ARRAY['RENTER', 'OWNER', 'AGENT', 'ADMIN', 'ROLE_RENTER', 'ROLE_OWNER', 'ROLE_AGENT', 'ROLE_ADMIN']::varchar[] AND coalesce(array_length(roles, 1), 0) > 0),
+    user_role         VARCHAR(50)  NOT NULL DEFAULT 'GUEST' CHECK (user_role IN ('GUEST', 'REGULAR_USER', 'AGENT', 'ADMIN')),
     status            VARCHAR(50)  NOT NULL DEFAULT 'PENDING_VERIFY' CHECK (status IN ('ACTIVE', 'SUSPENDED', 'PENDING_VERIFY')),
 
     email_verified    BOOLEAN      NOT NULL DEFAULT FALSE,
@@ -22,7 +22,7 @@ CREATE TABLE users (
     created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
     CONSTRAINT chk_auth_method CHECK (
-        (auth_provider = 'LOCAL' AND password_hash IS NOT NULL) OR 
+        (auth_provider = 'LOCAL' AND provider_id IS NULL AND password_hash IS NOT NULL) OR
         (auth_provider != 'LOCAL' AND provider_id IS NOT NULL AND password_hash IS NULL)
     )
 );
@@ -30,7 +30,7 @@ CREATE TABLE users (
 CREATE UNIQUE INDEX idx_users_email_unique ON users(LOWER(email)) WHERE deleted_at IS NULL;
 CREATE INDEX idx_users_email  ON users(LOWER(email));
 CREATE UNIQUE INDEX idx_users_provider ON users(auth_provider, provider_id) WHERE auth_provider != 'LOCAL' AND deleted_at IS NULL;
-CREATE INDEX idx_users_roles  ON users USING GIN(roles);
+CREATE INDEX idx_users_role   ON users(user_role);
 CREATE INDEX idx_users_status ON users(status);
 
 CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -95,7 +95,7 @@ CREATE TRIGGER trg_agent_profiles_updated_at BEFORE UPDATE ON agent_profiles FOR
 CREATE OR REPLACE FUNCTION check_agent_profile_role()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM users WHERE id = NEW.user_id AND 'AGENT' = ANY(roles)) THEN
+    IF NOT EXISTS (SELECT 1 FROM users WHERE id = NEW.user_id AND user_role = 'AGENT') THEN
         RAISE EXCEPTION 'User does not have AGENT role';
     END IF;
     RETURN NEW;
@@ -126,4 +126,3 @@ CREATE TABLE listing_packages (
 );
 
 CREATE TRIGGER trg_listing_packages_updated_at BEFORE UPDATE ON listing_packages FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
