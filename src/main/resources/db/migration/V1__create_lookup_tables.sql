@@ -71,16 +71,24 @@ CREATE TABLE property_types (
 CREATE TRIGGER trg_property_types_updated_at BEFORE UPDATE ON property_types FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- 5. Amenities
+CREATE TYPE amenity_category AS ENUM (
+    'SECURITY',
+    'FURNITURE',
+    'UTILITY',
+    'BATHROOM',
+    'KITCHEN'
+);
+
 CREATE TABLE amenities (
-    id         SERIAL       PRIMARY KEY,
-    name       VARCHAR(100) NOT NULL,
-    slug       VARCHAR(100) NOT NULL UNIQUE,
+    id         SERIAL          PRIMARY KEY,
+    name       VARCHAR(100)    NOT NULL,
+    slug       VARCHAR(100)    NOT NULL UNIQUE,
     icon       VARCHAR(255),
-    category   VARCHAR(50),
-    sort_order INTEGER     NOT NULL DEFAULT 0,
-    is_active  BOOLEAN      NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ  NOT NULL DEFAULT now()
+    category   amenity_category,
+    sort_order INTEGER         NOT NULL DEFAULT 0,
+    is_active  BOOLEAN         NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ     NOT NULL DEFAULT now()
 );
 CREATE TRIGGER trg_amenities_updated_at BEFORE UPDATE ON amenities FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -96,25 +104,25 @@ INSERT INTO property_types (name, slug, icon, sort_order) VALUES
     ('Nhà mặt phố',            'nha-mat-pho',     'building-store', 8);
 
 INSERT INTO amenities (name, slug, icon, category, sort_order) VALUES
-    ('Camera an ninh',    'camera',      'camera',          'security',   1),
-    ('Bảo vệ 24/7',       'bao-ve',      'shield-check',    'security',   2),
-    ('Khóa cửa thông minh','khoa-thong-minh','lock',        'security',   3),
-    ('Điều hòa',          'dieu-hoa',    'snowflake',       'furniture',  10),
-    ('Máy giặt',          'may-giat',    'washing-machine', 'furniture',  11),
-    ('Tủ lạnh',           'tu-lanh',     'fridge',          'furniture',  12),
-    ('Giường ngủ',        'giuong',      'bed',             'furniture',  13),
-    ('Tivi',              'tivi',        'device-tv',       'furniture',  14),
-    ('Bàn làm việc',      'ban-lam-viec','desk',            'furniture',  15),
-    ('Wifi miễn phí',     'wifi',        'wifi',            'utility',    20),
-    ('Chỗ để xe máy',     'cho-xe-may',  'motorbike',       'utility',    21),
-    ('Chỗ để ô tô',       'cho-o-to',    'car',             'utility',    22),
-    ('Thang máy',         'thang-may',   'elevator',        'utility',    23),
-    ('Bể bơi',            'be-boi',      'swimming-pool',   'utility',    24),
-    ('Gym / Phòng tập',   'gym',         'barbell',         'utility',    25),
-    ('Ban công',          'ban-cong',    'balcony',         'utility',    26),
-    ('WC riêng',          'wc-rieng',    'toilet-paper',    'bathroom',   30),
-    ('Bếp riêng',         'bep-rieng',   'chef-hat',        'kitchen',    31),
-    ('Nước nóng',         'nuoc-nong',   'droplet',         'bathroom',   32);
+    ('Camera an ninh',    'camera',      'camera',          'SECURITY',   1),
+    ('Bảo vệ 24/7',       'bao-ve',      'shield-check',    'SECURITY',   2),
+    ('Khóa cửa thông minh','khoa-thong-minh','lock',        'SECURITY',   3),
+    ('Điều hòa',          'dieu-hoa',    'snowflake',       'FURNITURE',  10),
+    ('Máy giặt',          'may-giat',    'washing-machine', 'FURNITURE',  11),
+    ('Tủ lạnh',           'tu-lanh',     'fridge',          'FURNITURE',  12),
+    ('Giường ngủ',        'giuong',      'bed',             'FURNITURE',  13),
+    ('Tivi',              'tivi',        'device-tv',       'FURNITURE',  14),
+    ('Bàn làm việc',      'ban-lam-viec','desk',            'FURNITURE',  15),
+    ('Wifi miễn phí',     'wifi',        'wifi',            'UTILITY',    20),
+    ('Chỗ để xe máy',     'cho-xe-may',  'motorbike',       'UTILITY',    21),
+    ('Chỗ để ô tô',       'cho-o-to',    'car',             'UTILITY',    22),
+    ('Thang máy',         'thang-may',   'elevator',        'UTILITY',    23),
+    ('Bể bơi',            'be-boi',      'swimming-pool',   'UTILITY',    24),
+    ('Gym / Phòng tập',   'gym',         'barbell',         'UTILITY',    25),
+    ('Ban công',          'ban-cong',    'balcony',         'UTILITY',    26),
+    ('WC riêng',          'wc-rieng',    'toilet-paper',    'BATHROOM',   30),
+    ('Bếp riêng',         'bep-rieng',   'chef-hat',        'KITCHEN',    31),
+    ('Nước nóng',         'nuoc-nong',   'droplet',         'BATHROOM',   32);
 
 /* === Vietnamese Provinces Database Dataset for PostgreSQL/MySQL === */
 /* Created at:  Sun, 14 Jun 2026 11:26:24 +0700 */

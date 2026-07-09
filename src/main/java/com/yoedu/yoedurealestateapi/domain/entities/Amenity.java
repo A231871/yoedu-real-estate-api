@@ -1,7 +1,10 @@
 package com.yoedu.yoedurealestateapi.domain.entities;
 
+import com.yoedu.yoedurealestateapi.domain.enums.AmenityCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -33,8 +36,9 @@ public class Amenity {
     @Column(name = "icon", length = 255)
     private String icon;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "category", length = 50)
-    private String category;
+    private AmenityCategory category;
 
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder = 0;
