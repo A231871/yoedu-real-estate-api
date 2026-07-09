@@ -58,18 +58,18 @@ CREATE TRIGGER trg_schedules_updated_at BEFORE UPDATE ON viewing_schedules FOR E
 CREATE OR REPLACE FUNCTION check_listing_bookable()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
-    IF (TG_OP = 'INSERT' OR
-        NEW.scheduled_start != OLD.scheduled_start OR
+    IF (TG_OP = 'INSERT' OR 
+        NEW.scheduled_start != OLD.scheduled_start OR 
         NEW.scheduled_end != OLD.scheduled_end OR
         (TG_OP = 'UPDATE' AND NEW.status IN ('PENDING', 'CONFIRMED') AND OLD.status NOT IN ('PENDING', 'CONFIRMED'))) THEN
-
+        
         IF NOT EXISTS (SELECT 1 FROM listings WHERE id = NEW.listing_id AND status = 'APPROVED' AND deleted_at IS NULL) THEN
             RAISE EXCEPTION 'Listing % is not available for scheduling', NEW.listing_id;
         END IF;
     END IF;
     IF NOT EXISTS (
-        SELECT 1 FROM listings
-        WHERE id = NEW.listing_id
+        SELECT 1 FROM listings 
+        WHERE id = NEW.listing_id 
         AND (owner_id = NEW.host_id OR agent_id = NEW.host_id)
     ) THEN
         RAISE EXCEPTION 'Host does not own or manage this listing';
@@ -87,30 +87,11 @@ $$;
 CREATE TRIGGER trg_check_listing_bookable BEFORE INSERT OR UPDATE OF scheduled_start, scheduled_end, status ON viewing_schedules FOR EACH ROW EXECUTE FUNCTION check_listing_bookable();
 
 CREATE OR REPLACE FUNCTION check_contract_owner()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    listing_owner UUID;
-    listing_type_db VARCHAR(50);
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
-    SELECT owner_id, listing_type
-    INTO listing_owner, listing_type_db
-    FROM listings
-    WHERE id = NEW.listing_id;
-
-    IF listing_owner IS NULL THEN
-        RAISE EXCEPTION 'Listing does not exist';
+    IF NEW.owner_id != (SELECT owner_id FROM listings WHERE id = NEW.listing_id) THEN
+        RAISE EXCEPTION 'Contract owner_id does not match listing owner_id';
     END IF;
-
-    IF NEW.owner_id <> listing_owner THEN
-        RAISE EXCEPTION 'Contract owner_id does not match listing owner';
-    END IF;
-
-    IF NEW.listing_type <> listing_type_db THEN
-        RAISE EXCEPTION 'Contract listing_type does not match listing';
-    END IF;
-
     RETURN NEW;
 END;
 $$;
@@ -130,8 +111,7 @@ CREATE TABLE contracts (
     sale_price_agreed NUMERIC(18, 0),
     notary_date DATE,
     tax_fee_responsibility VARCHAR(50) CHECK (tax_fee_responsibility IN ('BUYER', 'SELLER', 'SHARED', 'RENTER', 'OWNER')),
-    listing_type VARCHAR(50) NOT NULL
-        CHECK (listing_type IN ('FOR_RENT', 'FOR_SALE')),
+    listing_type VARCHAR(50) NOT NULL CHECK (listing_type IN ('FOR_RENT', 'FOR_SALE')),
     status VARCHAR(50) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'SIGNED_BY_CLIENT', 'SIGNED_BY_OWNER', 'ACTIVE', 'COMPLETED', 'CANCELLED')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -139,10 +119,10 @@ CREATE TABLE contracts (
     CONSTRAINT chk_contract_dates CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date),
     CONSTRAINT chk_contract_type_match CHECK (
         status = 'DRAFT' OR
-        (listing_type = 'FOR_RENT' AND monthly_rent_agreed IS NOT NULL AND sale_price_agreed IS NULL) OR
+        (listing_type = 'FOR_RENT' AND monthly_rent_agreed IS NOT NULL AND sale_price_agreed IS NULL) OR 
         (listing_type = 'FOR_SALE' AND sale_price_agreed IS NOT NULL AND monthly_rent_agreed IS NULL)
     ),
-    FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    FOREIGN KEY (listing_id, listing_type) REFERENCES listings(id, listing_type) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT chk_different_parties CHECK (client_id <> owner_id)
 );
 CREATE INDEX idx_contracts_listing ON contracts(listing_id);

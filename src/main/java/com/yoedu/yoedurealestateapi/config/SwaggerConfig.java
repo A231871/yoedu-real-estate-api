@@ -17,29 +17,19 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
-            .info(
-                new Info()
-                    .title("Yoedu Real Estate API")
-                    .version("v1")
-                    .description(
-                        "API documentation for Yoedu Real Estate backend"
-                    )
-            )
-            .addServersItem(
-                new Server()
-                    .url("http://localhost:8080/api")
-                    .description("Local development server")
-            )
-            .components(
-                new Components().addSecuritySchemes(
-                    BEARER_AUTH,
-                    new SecurityScheme()
-                        .name(BEARER_AUTH)
-                        .type(SecurityScheme.Type.HTTP)
-                        .scheme("bearer")
-                        .bearerFormat("JWT")
-                )
-            )
-            .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH));
+                .info(new Info()
+                        .title("Yoedu Real Estate API")
+                        .version("v1")
+                        .description("API documentation for Yoedu Real Estate backend"))
+                .addServersItem(new Server()
+                        .url("http://localhost:8080")
+                        .description("Local development server"))
+                .components(new Components()
+                        .addSecuritySchemes(BEARER_AUTH, new SecurityScheme()
+                                .name(BEARER_AUTH)
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT")))
+                .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH));
     }
 }
