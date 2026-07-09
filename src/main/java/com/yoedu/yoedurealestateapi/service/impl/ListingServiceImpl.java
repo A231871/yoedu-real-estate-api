@@ -1,5 +1,6 @@
 package com.yoedu.yoedurealestateapi.service.impl;
 
+import com.yoedu.yoedurealestateapi.common.Utils;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
 import com.yoedu.yoedurealestateapi.domain.entities.Amenity;
 import com.yoedu.yoedurealestateapi.domain.entities.Listing;
@@ -42,10 +43,12 @@ public class ListingServiceImpl implements ListingService {
 
     // Utils
     private ListingSummaryResponse toListingSummaryResponse(Listing listing) {
+        User agent = listing.getAgent();
+
         return new ListingSummaryResponse(
             listing.getId().toString(),
             listing.getOwner().getId().toString(),
-            listing.getAgent().getId().toString(),
+            agent != null ? agent.getId().toString() : null,
             listing.getTitle(),
             listing.getSlug(),
             listing.getDescription(),
@@ -134,9 +137,10 @@ public class ListingServiceImpl implements ListingService {
             .findById(UUID.fromString(request.getOwnerId()))
             .orElseThrow(() -> new NotFoundException("Owner not found"));
 
-        Optional<User> agent = userRepository.findById(
-            UUID.fromString(request.getAgentId())
-        );
+        Optional<User> agent =
+            request.getAgentId() != null
+                ? userRepository.findById(UUID.fromString(request.getAgentId()))
+                : Optional.empty();
 
         PropertyType propertyType = propertyTypeRepository
             .findById(Integer.parseInt(request.getPropertyTypeId()))
@@ -177,6 +181,7 @@ public class ListingServiceImpl implements ListingService {
         newListing.setOwner(owner);
         newListing.setAgent(agent.orElse(null));
         newListing.setTitle(request.getTitle());
+        newListing.setSlug(Utils.generateSlug(request.getTitle()));
         newListing.setDescription(request.getDescription());
         newListing.setAddress(request.getAddress());
         newListing.setArea(request.getArea());
@@ -214,6 +219,7 @@ public class ListingServiceImpl implements ListingService {
     public void createListing(ListingUpsertRequest request) {
         Listing newListing = new Listing();
         apply(request, newListing);
+        listingRepository.save(newListing);
     }
 
     @Override
@@ -224,6 +230,7 @@ public class ListingServiceImpl implements ListingService {
                 new NotFoundException("Listing with id " + id + " not found")
             );
         apply(request, currentListing);
+        listingRepository.save(currentListing);
     }
 
     @Override
