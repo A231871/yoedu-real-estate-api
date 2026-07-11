@@ -69,13 +69,11 @@ public class ViewingSchedule extends AuditableEntity {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
-
     @Column(name = "scheduled_local_time", nullable = false)
     private LocalDateTime scheduledLocalTime;
 
     @Column(name = "timezone_id", nullable = false, length = 100)
     private String timezoneId;
-
 
     @Version
     @Column(name = "version", nullable = false)

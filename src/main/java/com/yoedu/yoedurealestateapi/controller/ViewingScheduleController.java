@@ -29,7 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * CRUD controller cho Viewing Schedules.
- * Controller nhận entity từ Service rồi dùng ModelMapper map sang DTO trước khi trả về.
+ * Controller nhận entity từ Service rồi dùng ModelMapper map sang DTO trước khi
+ * trả về.
  */
 @RestController
 @RequestMapping("/api/viewing-schedules")
@@ -48,16 +49,15 @@ public class ViewingScheduleController {
      * Renter đặt lịch hẹn xem nhà cho một listing đã được duyệt.
      */
     @PostMapping
-    @Operation(summary = "Đặt lịch hẹn xem nhà",
-        description = "Renter tạo yêu cầu xem nhà cho listing có trạng thái APPROVED")
+    @Operation(summary = "Đặt lịch hẹn xem nhà", description = "Renter tạo yêu cầu xem nhà cho listing có trạng thái APPROVED")
     public ResponseEntity<ApiResponse<ViewingScheduleResponse>> createSchedule(
             @Valid @RequestBody UpsertViewingScheduleRequest request,
             Authentication authentication) {
         UUID clientId = UUID.fromString(authentication.getName());
         ViewingSchedule saved = viewingScheduleService.createSchedule(request, clientId);
         return ResponseEntity
-            .status(HttpStatus.CREATED)
-            .body(ApiResponse.ok("Tạo lịch hẹn xem nhà thành công", toDto(saved)));
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Tạo lịch hẹn xem nhà thành công", toDto(saved)));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -76,20 +76,21 @@ public class ViewingScheduleController {
     }
 
     /**
-     * Lấy danh sách lịch hẹn của các listing đang được quản lý, có thể lọc theo status.
-     * Ví dụ: GET /api/viewing-schedules/managed?status=PENDING&status=CONFIRMED&page=0&size=10
+     * Lấy danh sách lịch hẹn của các listing đang được quản lý, có thể lọc theo
+     * status.
+     * Ví dụ: GET
+     * /api/viewing-schedules/managed?status=PENDING&status=CONFIRMED&page=0&size=10
      */
     @GetMapping("/managed")
-    @Operation(summary = "Lấy lịch hẹn quản lý",
-        description = "Xem danh sách lịch hẹn của các listing đang được quản lý, lọc theo status tuỳ chọn")
+    @Operation(summary = "Lấy lịch hẹn quản lý", description = "Xem danh sách lịch hẹn của các listing đang được quản lý, lọc theo status tuỳ chọn")
     public ResponseEntity<ApiResponse<Page<ViewingScheduleResponse>>> getManagedSchedules(
             @RequestParam(required = false) List<String> status,
             Pageable pageable,
             Authentication authentication) {
         UUID hostId = UUID.fromString(authentication.getName());
         Page<ViewingScheduleResponse> page = viewingScheduleService
-            .getHostSchedules(hostId, status, pageable)
-            .map(this::toDto);
+                .getHostSchedules(hostId, status, pageable)
+                .map(this::toDto);
         return ResponseEntity.ok(ApiResponse.ok("Lấy danh sách lịch hẹn thành công", page));
     }
 
@@ -98,16 +99,15 @@ public class ViewingScheduleController {
      * Ví dụ: GET /api/viewing-schedules/requested?status=CONFIRMED&page=0&size=10
      */
     @GetMapping("/requested")
-    @Operation(summary = "Lấy lịch hẹn đã yêu cầu",
-        description = "Xem danh sách lịch hẹn đã yêu cầu, lọc theo status tuỳ chọn")
+    @Operation(summary = "Lấy lịch hẹn đã yêu cầu", description = "Xem danh sách lịch hẹn đã yêu cầu, lọc theo status tuỳ chọn")
     public ResponseEntity<ApiResponse<Page<ViewingScheduleResponse>>> getRequestedSchedules(
             @RequestParam(required = false) List<String> status,
             Pageable pageable,
             Authentication authentication) {
         UUID clientId = UUID.fromString(authentication.getName());
         Page<ViewingScheduleResponse> page = viewingScheduleService
-            .getClientSchedules(clientId, status, pageable)
-            .map(this::toDto);
+                .getClientSchedules(clientId, status, pageable)
+                .map(this::toDto);
         return ResponseEntity.ok(ApiResponse.ok("Lấy danh sách lịch hẹn thành công", page));
     }
 
@@ -117,12 +117,13 @@ public class ViewingScheduleController {
 
     /**
      * Host / Agent xác nhận lịch hẹn đang ở trạng thái PENDING.
-     * @PreAuthorize đảm bảo chỉ owner/agent của Listing mới được gọi endpoint này (chống IDOR).
+     * 
+     * @PreAuthorize đảm bảo chỉ owner/agent của Listing mới được gọi endpoint này
+     *               (chống IDOR).
      */
     @PutMapping("/{id}/confirm")
     @PreAuthorize("@viewingScheduleSecurity.isListingOwner(#id)")
-    @Operation(summary = "Xác nhận lịch hẹn",
-        description = "Xác nhận lịch hẹn đang ở trạng thái PENDING")
+    @Operation(summary = "Xác nhận lịch hẹn", description = "Xác nhận lịch hẹn đang ở trạng thái PENDING")
     public ResponseEntity<ApiResponse<ViewingScheduleResponse>> confirmSchedule(
             @PathVariable UUID id) {
         ViewingSchedule saved = viewingScheduleService.confirmSchedule(id);
@@ -131,19 +132,20 @@ public class ViewingScheduleController {
 
     /**
      * Host / Agent huỷ lịch hẹn kèm lý do.
-     * @PreAuthorize đảm bảo chỉ owner/agent của Listing mới được gọi endpoint này (chống IDOR).
+     * 
+     * @PreAuthorize đảm bảo chỉ owner/agent của Listing mới được gọi endpoint này
+     *               (chống IDOR).
      */
     @PutMapping("/{id}/cancel")
     @PreAuthorize("@viewingScheduleSecurity.isListingOwner(#id)")
-    @Operation(summary = "Huỷ lịch hẹn",
-        description = "Host/Agent huỷ lịch hẹn kèm lý do (cancel_reason)")
+    @Operation(summary = "Huỷ lịch hẹn", description = "Host/Agent huỷ lịch hẹn kèm lý do (cancel_reason)")
     public ResponseEntity<ApiResponse<ViewingScheduleResponse>> cancelSchedule(
             @PathVariable UUID id,
             @Valid @RequestBody UpsertViewingScheduleRequest cancelRequest,
             Authentication authentication) {
         UUID actorId = UUID.fromString(authentication.getName());
         ViewingSchedule saved = viewingScheduleService.cancelSchedule(
-            id, cancelRequest.getReason(), actorId);
+                id, cancelRequest.getReason(), actorId);
         return ResponseEntity.ok(ApiResponse.ok("Huỷ lịch hẹn xem nhà thành công", toDto(saved)));
     }
 

@@ -36,11 +36,11 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         Listing listing = listingRepository.findById(request.getListingId())
                 .filter(l -> l.getDeletedAt() == null)
                 .orElseThrow(() -> new NotFoundException(
-                    "Không tìm thấy tin đăng hoặc tin đăng đã bị xóa"));
+                        "Không tìm thấy tin đăng hoặc tin đăng đã bị xóa"));
 
         if (!"APPROVED".equals(listing.getStatus())) {
             throw new BadRequestException(
-                "Chỉ có thể đặt lịch hẹn cho các tin đăng đã được phê duyệt");
+                    "Chỉ có thể đặt lịch hẹn cho các tin đăng đã được phê duyệt");
         }
 
         ZoneId zoneId;
@@ -48,7 +48,7 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
             zoneId = ZoneId.of(request.getTimezoneId());
         } catch (DateTimeException e) {
             throw new BadRequestException(
-                "Múi giờ không hợp lệ: " + request.getTimezoneId());
+                    "Múi giờ không hợp lệ: " + request.getTimezoneId());
         }
 
         ZonedDateTime localZonedDateTime = request.getScheduledLocalTime().atZone(zoneId);
@@ -59,7 +59,8 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         }
 
         int duration = (request.getDurationMinutes() != null)
-            ? request.getDurationMinutes() : 60;
+                ? request.getDurationMinutes()
+                : 60;
         if (duration <= 0) {
             throw new BadRequestException("Thời lượng lịch hẹn phải lớn hơn 0");
         }
@@ -70,10 +71,11 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         schedule.setClientId(clientId);
 
         UUID hostId = (listing.getAgentId() != null)
-            ? listing.getAgentId() : listing.getOwnerId();
+                ? listing.getAgentId()
+                : listing.getOwnerId();
         if (clientId.equals(hostId)) {
             throw new BadRequestException(
-                "Khách thuê và Chủ nhà/Môi giới không được phép trùng nhau");
+                    "Khách thuê và Chủ nhà/Môi giới không được phép trùng nhau");
         }
         schedule.setHostId(hostId);
 
@@ -95,7 +97,7 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
 
         if (!"PENDING".equals(schedule.getStatus())) {
             throw new BadRequestException(
-                "Lịch hẹn hiện tại không ở trạng thái PENDING.");
+                    "Lịch hẹn hiện tại không ở trạng thái PENDING.");
         }
 
         schedule.setStatus("CONFIRMED");
@@ -133,32 +135,32 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
     @Override
     @Transactional(readOnly = true)
     public Page<ViewingSchedule> getHostSchedules(
-        UUID hostId, List<String> statuses, Pageable pageable) {
+            UUID hostId, List<String> statuses, Pageable pageable) {
         if (statuses == null || statuses.isEmpty()) {
             return viewingScheduleRepository
-                .findByHostIdAndDeletedAtIsNullOrderByScheduledStartDesc(hostId, pageable);
+                    .findByHostIdAndDeletedAtIsNullOrderByScheduledStartDesc(hostId, pageable);
         }
         return viewingScheduleRepository
-            .findByHostIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
-                hostId, statuses, pageable);
+                .findByHostIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
+                        hostId, statuses, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ViewingSchedule> getClientSchedules(
-        UUID clientId, List<String> statuses, Pageable pageable) {
+            UUID clientId, List<String> statuses, Pageable pageable) {
         if (statuses == null || statuses.isEmpty()) {
             return viewingScheduleRepository
-                .findByClientIdAndDeletedAtIsNullOrderByScheduledStartDesc(clientId, pageable);
+                    .findByClientIdAndDeletedAtIsNullOrderByScheduledStartDesc(clientId, pageable);
         }
         return viewingScheduleRepository
-            .findByClientIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
-                clientId, statuses, pageable);
+                .findByClientIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
+                        clientId, statuses, pageable);
     }
 
     private ViewingSchedule getActiveSchedule(UUID id) {
         return viewingScheduleRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new NotFoundException(
-                    "Không tìm thấy lịch hẹn hoặc lịch hẹn đã bị xóa"));
+                        "Không tìm thấy lịch hẹn hoặc lịch hẹn đã bị xóa"));
     }
 }

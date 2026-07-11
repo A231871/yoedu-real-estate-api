@@ -21,7 +21,8 @@ public class ViewingScheduleSecurity {
     @Transactional(readOnly = true)
     public boolean isListingOwner(UUID scheduleId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
             return false;
         }
 
