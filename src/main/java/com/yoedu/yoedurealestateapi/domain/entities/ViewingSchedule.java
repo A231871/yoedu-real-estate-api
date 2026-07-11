@@ -69,14 +69,14 @@ public class ViewingSchedule extends AuditableEntity {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
-    // Múi giờ địa phương phục vụ tính toán DST chuẩn xác (được thêm qua V11) [2]
+
     @Column(name = "scheduled_local_time", nullable = false)
     private LocalDateTime scheduledLocalTime;
 
     @Column(name = "timezone_id", nullable = false, length = 100)
     private String timezoneId;
 
-    // Khóa lạc quan chống xung đột sửa đổi đồng thời (được thêm qua V11) [2]
+
     @Version
     @Column(name = "version", nullable = false)
     private Long version;
@@ -85,4 +85,5 @@ public class ViewingSchedule extends AuditableEntity {
     public boolean isDeleted() {
         return this.deletedAt != null;
     }
+
 }

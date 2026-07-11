@@ -2,7 +2,6 @@ package com.yoedu.yoedurealestateapi.service.impl;
 
 import com.yoedu.yoedurealestateapi.common.exception.BadRequestException;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
-import com.yoedu.yoedurealestateapi.domain.entities.Listing;
 import com.yoedu.yoedurealestateapi.domain.entities.ViewingSchedule;
 import com.yoedu.yoedurealestateapi.dto.UpsertViewingScheduleRequest;
 import com.yoedu.yoedurealestateapi.repository.ListingRepository;
