@@ -1,5 +1,6 @@
 package com.yoedu.yoedurealestateapi.security;
 
+import com.yoedu.yoedurealestateapi.domain.entities.Listing;
 import com.yoedu.yoedurealestateapi.domain.entities.ViewingSchedule;
 import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.ViewingScheduleRepository;

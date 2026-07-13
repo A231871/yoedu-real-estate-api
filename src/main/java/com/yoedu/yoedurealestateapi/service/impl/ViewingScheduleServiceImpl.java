@@ -4,6 +4,7 @@ import com.yoedu.yoedurealestateapi.common.exception.BadRequestException;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
 import com.yoedu.yoedurealestateapi.domain.entities.ViewingSchedule;
 import com.yoedu.yoedurealestateapi.dto.UpsertViewingScheduleRequest;
+import com.yoedu.yoedurealestateapi.dto.ViewingScheduleResponse;
 import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.ViewingScheduleRepository;
 import com.yoedu.yoedurealestateapi.service.ViewingScheduleService;
@@ -14,25 +15,22 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-/**
- * Service thuần business logic, trả về entity.
- * Không phụ thuộc ModelMapper — Controller sẽ lo việc map sang DTO.
- */
 @Service
 @RequiredArgsConstructor
 public class ViewingScheduleServiceImpl implements ViewingScheduleService {
 
     private final ViewingScheduleRepository viewingScheduleRepository;
     private final ListingRepository listingRepository;
+    private final ModelMapper modelMapper;
 
     @Override
     @Transactional
-    public ViewingSchedule createSchedule(UpsertViewingScheduleRequest request, UUID clientId) {
+    public ViewingScheduleResponse createSchedule(UpsertViewingScheduleRequest request, UUID clientId) {
         Listing listing = listingRepository.findById(request.getListingId())
                 .filter(l -> l.getDeletedAt() == null)
                 .orElseThrow(() -> new NotFoundException(
@@ -87,12 +85,13 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         schedule.setStatus("PENDING");
         schedule.setReminderSent(false);
 
-        return viewingScheduleRepository.save(schedule);
+        ViewingSchedule saved = viewingScheduleRepository.save(schedule);
+        return toDto(saved);
     }
 
     @Override
     @Transactional
-    public ViewingSchedule confirmSchedule(UUID id) {
+    public ViewingScheduleResponse confirmSchedule(UUID id) {
         ViewingSchedule schedule = getActiveSchedule(id);
 
         if (!"PENDING".equals(schedule.getStatus())) {
@@ -103,12 +102,13 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         schedule.setStatus("CONFIRMED");
         schedule.setConfirmedAt(Instant.now());
 
-        return viewingScheduleRepository.save(schedule);
+        ViewingSchedule saved = viewingScheduleRepository.save(schedule);
+        return toDto(saved);
     }
 
     @Override
     @Transactional
-    public ViewingSchedule cancelSchedule(UUID id, String reason, UUID actorId) {
+    public ViewingScheduleResponse cancelSchedule(UUID id, String reason, UUID actorId) {
         ViewingSchedule schedule = getActiveSchedule(id);
 
         if ("CANCELLED".equals(schedule.getStatus())) {
@@ -123,44 +123,58 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         schedule.setCancelledBy(actorId);
         schedule.setCancelledAt(Instant.now());
 
-        return viewingScheduleRepository.save(schedule);
+        ViewingSchedule saved = viewingScheduleRepository.save(schedule);
+        return toDto(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ViewingSchedule getScheduleById(UUID id) {
-        return getActiveSchedule(id);
+    public ViewingScheduleResponse getScheduleById(UUID id) {
+        return toDto(getActiveSchedule(id));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ViewingSchedule> getHostSchedules(
+    public Page<ViewingScheduleResponse> getHostSchedules(
             UUID hostId, List<String> statuses, Pageable pageable) {
+        Page<ViewingSchedule> page;
         if (statuses == null || statuses.isEmpty()) {
-            return viewingScheduleRepository
+            page = viewingScheduleRepository
                     .findByHostIdAndDeletedAtIsNullOrderByScheduledStartDesc(hostId, pageable);
+        } else {
+            page = viewingScheduleRepository
+                    .findByHostIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
+                            hostId, statuses, pageable);
         }
-        return viewingScheduleRepository
-                .findByHostIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
-                        hostId, statuses, pageable);
+        return page.map(this::toDto);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ViewingSchedule> getClientSchedules(
+    public Page<ViewingScheduleResponse> getClientSchedules(
             UUID clientId, List<String> statuses, Pageable pageable) {
+        Page<ViewingSchedule> page;
         if (statuses == null || statuses.isEmpty()) {
-            return viewingScheduleRepository
+            page = viewingScheduleRepository
                     .findByClientIdAndDeletedAtIsNullOrderByScheduledStartDesc(clientId, pageable);
+        } else {
+            page = viewingScheduleRepository
+                    .findByClientIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
+                            clientId, statuses, pageable);
         }
-        return viewingScheduleRepository
-                .findByClientIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
-                        clientId, statuses, pageable);
+        return page.map(this::toDto);
     }
 
     private ViewingSchedule getActiveSchedule(UUID id) {
         return viewingScheduleRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new NotFoundException(
                         "Không tìm thấy lịch hẹn hoặc lịch hẹn đã bị xóa"));
+    }
+
+    private ViewingScheduleResponse toDto(ViewingSchedule entity) {
+        ViewingScheduleResponse dto = modelMapper.map(entity, ViewingScheduleResponse.class);
+        dto.setScheduledUtcTime(entity.getScheduledStart());
+        dto.setScheduledEndUtcTime(entity.getScheduledEnd());
+        return dto;
     }
 }

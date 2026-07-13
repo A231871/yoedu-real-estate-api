@@ -1,6 +1,6 @@
 package com.yoedu.yoedurealestateapi.domain.entities;
 
-import com.yoedu.yoedurealestateapi.domain.AuditableEntity;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
