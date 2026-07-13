@@ -72,10 +72,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(
         DataIntegrityViolationException ex
     ) {
+        String message = ex.getMostSpecificCause() != null
+                ? ex.getMostSpecificCause().getMessage()
+                : ex.getMessage();
+
+        if (message != null && message.contains("no_listing_double_booking")) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error(
+                            "Khoảng thời gian này đã có lịch hẹn khác cho tin đăng này. Vui lòng chọn thời gian khác."));
+        }
+
         return ResponseEntity.badRequest().body(
-            ApiResponse.error(
-                "Data integrity violation. Please check duplicate or foreign key values."
-            )
+                ApiResponse.error(
+                        "Data integrity violation. Please check duplicate or foreign key values.")
         );
     }
 

@@ -1,6 +1,7 @@
 package com.yoedu.yoedurealestateapi.repository;
 
 import com.yoedu.yoedurealestateapi.domain.entities.ViewingSchedule;
+import com.yoedu.yoedurealestateapi.domain.enums.ViewingScheduleStatus;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,7 +22,7 @@ public interface ViewingScheduleRepository extends JpaRepository<ViewingSchedule
 
     // GET /managed?status=PENDING,CONFIRMED — lọc theo status
     Page<ViewingSchedule> findByHostIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
-            UUID hostId, List<String> status, Pageable pageable);
+            UUID hostId, List<ViewingScheduleStatus> status, Pageable pageable);
 
     // GET /requested — không lọc status
     Page<ViewingSchedule> findByClientIdAndDeletedAtIsNullOrderByScheduledStartDesc(
@@ -29,5 +30,5 @@ public interface ViewingScheduleRepository extends JpaRepository<ViewingSchedule
 
     // GET /requested?status=CONFIRMED — lọc theo status
     Page<ViewingSchedule> findByClientIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
-            UUID clientId, List<String> status, Pageable pageable);
+            UUID clientId, List<ViewingScheduleStatus> status, Pageable pageable);
 }

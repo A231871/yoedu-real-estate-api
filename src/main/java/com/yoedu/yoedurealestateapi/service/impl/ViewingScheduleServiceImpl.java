@@ -6,6 +6,7 @@ import com.yoedu.yoedurealestateapi.domain.entities.Listing;
 import com.yoedu.yoedurealestateapi.domain.entities.User;
 import com.yoedu.yoedurealestateapi.domain.entities.ViewingSchedule;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingStatus;
+import com.yoedu.yoedurealestateapi.domain.enums.ViewingScheduleStatus;
 import com.yoedu.yoedurealestateapi.dto.view_schedule.UpsertViewingScheduleRequest;
 import com.yoedu.yoedurealestateapi.dto.view_schedule.ViewingScheduleResponse;
 import com.yoedu.yoedurealestateapi.repository.ListingRepository;
@@ -15,9 +16,11 @@ import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,9 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
 
     private final ViewingScheduleRepository viewingScheduleRepository;
     private final ListingRepository listingRepository;
+
+    @Value("${app.viewing.buffer-minutes:15}")
+    private int bufferMinutes;
 
     @Override
     @Transactional
@@ -63,7 +69,10 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         if (duration <= 0) {
             throw new BadRequestException("Thời lượng lịch hẹn phải lớn hơn 0");
         }
-        Instant utcEnd = localZonedDateTime.plusMinutes(duration).toInstant();
+        int effectiveBuffer = Math.max(bufferMinutes, 0);
+        Instant utcEnd = localZonedDateTime
+                .plusMinutes(duration + (long) effectiveBuffer)
+                .toInstant();
 
         ViewingSchedule schedule = new ViewingSchedule();
         schedule.setListingId(listing.getId());
@@ -80,8 +89,10 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         schedule.setTimezoneId(zoneId.getId());
         schedule.setScheduledStart(utcStart);
         schedule.setScheduledEnd(utcEnd);
+        schedule.setScheduledUtcTime(utcStart);
+        schedule.setScheduledEndUtcTime(utcEnd);
         schedule.setNote(request.getNote());
-        schedule.setStatus("PENDING");
+        schedule.setStatus(ViewingScheduleStatus.PENDING_CONFIRMATION);
         schedule.setReminderSent(false);
 
         ViewingSchedule saved = viewingScheduleRepository.save(schedule);
@@ -94,12 +105,12 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
     public ViewingScheduleResponse confirmSchedule(UUID id) {
         ViewingSchedule schedule = getActiveSchedule(id);
 
-        if (!"PENDING".equals(schedule.getStatus())) {
+        if (!ViewingScheduleStatus.PENDING_CONFIRMATION.equals(schedule.getStatus())) {
             throw new BadRequestException(
-                    "Lịch hẹn hiện tại không ở trạng thái PENDING.");
+                    "Lịch hẹn hiện tại không ở trạng thái PENDING_CONFIRMATION.");
         }
 
-        schedule.setStatus("CONFIRMED");
+        schedule.setStatus(ViewingScheduleStatus.CONFIRMED);
         schedule.setConfirmedAt(Instant.now());
 
         ViewingSchedule saved = viewingScheduleRepository.save(schedule);
@@ -111,14 +122,14 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
     public ViewingScheduleResponse cancelSchedule(UUID id, String reason, UUID actorId) {
         ViewingSchedule schedule = getActiveSchedule(id);
 
-        if ("CANCELLED".equals(schedule.getStatus())) {
+        if (ViewingScheduleStatus.CANCELLED.equals(schedule.getStatus())) {
             throw new BadRequestException("Lịch hẹn này đã bị hủy từ trước");
         }
-        if ("COMPLETED".equals(schedule.getStatus())) {
+        if (ViewingScheduleStatus.COMPLETED.equals(schedule.getStatus())) {
             throw new BadRequestException("Không thể hủy lịch hẹn đã hoàn thành");
         }
 
-        schedule.setStatus("CANCELLED");
+        schedule.setStatus(ViewingScheduleStatus.CANCELLED);
         schedule.setCancelReason(reason);
         schedule.setCancelledBy(actorId);
         schedule.setCancelledAt(Instant.now());
@@ -144,7 +155,7 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         } else {
             page = viewingScheduleRepository
                     .findByHostIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
-                            hostId, statuses, pageable);
+                            hostId, parseStatuses(statuses), pageable);
         }
         return page.map(this::toDto);
     }
@@ -160,9 +171,26 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         } else {
             page = viewingScheduleRepository
                     .findByClientIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
-                            clientId, statuses, pageable);
+                            clientId, parseStatuses(statuses), pageable);
         }
         return page.map(this::toDto);
+    }
+
+    private List<ViewingScheduleStatus> parseStatuses(List<String> statuses) {
+        try {
+            return statuses.stream()
+                    .map(value -> {
+                        String normalized = value.trim().toUpperCase();
+                        if ("PENDING".equals(normalized)) {
+                            return ViewingScheduleStatus.PENDING_CONFIRMATION;
+                        }
+                        return ViewingScheduleStatus.valueOf(normalized);
+                    })
+                    .toList();
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Status không hợp lệ. Hỗ trợ: "
+                    + Arrays.toString(ViewingScheduleStatus.values()));
+        }
     }
 
     private ViewingSchedule getActiveSchedule(UUID id) {
@@ -186,11 +214,11 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         dto.setClientId(entity.getClientId());
         dto.setHostId(entity.getHostId());
         dto.setScheduledLocalTime(entity.getScheduledLocalTime());
-        dto.setScheduledUtcTime(entity.getScheduledStart());
-        dto.setScheduledEndUtcTime(entity.getScheduledEnd());
+        dto.setScheduledUtcTime(entity.getScheduledUtcTime());
+        dto.setScheduledEndUtcTime(entity.getScheduledEndUtcTime());
         dto.setDurationMins(entity.getDurationMins());
         dto.setTimezoneId(entity.getTimezoneId());
-        dto.setStatus(entity.getStatus());
+        dto.setStatus(entity.getStatus().name());
         dto.setNote(entity.getNote());
         dto.setCancelReason(entity.getCancelReason());
         dto.setCancelledBy(entity.getCancelledBy());

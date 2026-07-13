@@ -3,12 +3,12 @@ package com.yoedu.yoedurealestateapi.domain.entities;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
+import com.yoedu.yoedurealestateapi.domain.enums.ViewingScheduleStatus;
 import lombok.Getter;
 import lombok.Setter;
 import java.time.Instant;
@@ -38,6 +38,12 @@ public class ViewingSchedule extends AuditableEntity {
     @Column(name = "scheduled_end", nullable = false)
     private Instant scheduledEnd;
 
+    @Column(name = "scheduled_utc_time", nullable = false)
+    private Instant scheduledUtcTime;
+
+    @Column(name = "scheduled_end_utc_time", nullable = false)
+    private Instant scheduledEndUtcTime;
+
     // Thuộc tính ảo tự động sinh trong cơ sở dữ liệu (GENERATED ALWAYS) [2]
     @Column(name = "duration_mins", insertable = false, updatable = false)
     private Integer durationMins;
@@ -46,7 +52,8 @@ public class ViewingSchedule extends AuditableEntity {
     private String note;
 
     @Column(name = "status", nullable = false, length = 50)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private ViewingScheduleStatus status;
 
     @Column(name = "cancel_reason", columnDefinition = "TEXT")
     private String cancelReason;
