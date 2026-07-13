@@ -1,9 +1,9 @@
 package com.yoedu.yoedurealestateapi.controller;
 
-import com.yoedu.yoedurealestateapi.common.exception.ApiResponse;
+import com.yoedu.yoedurealestateapi.common.ApiResponse;
 import com.yoedu.yoedurealestateapi.domain.entities.ViewingSchedule;
-import com.yoedu.yoedurealestateapi.dto.UpsertViewingScheduleRequest;
-import com.yoedu.yoedurealestateapi.dto.ViewingScheduleResponse;
+import com.yoedu.yoedurealestateapi.dto.view_schedule.UpsertViewingScheduleRequest;
+import com.yoedu.yoedurealestateapi.dto.view_schedule.ViewingScheduleResponse;
 import com.yoedu.yoedurealestateapi.service.ViewingScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,7 +51,7 @@ public class ViewingScheduleController {
         ViewingScheduleResponse saved = viewingScheduleService.createSchedule(request, clientId);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("Tạo lịch hẹn xem nhà thành công", saved));
+                .body(ApiResponse.success("Tạo lịch hẹn xem nhà thành công", saved));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ public class ViewingScheduleController {
     public ResponseEntity<ApiResponse<ViewingScheduleResponse>> getById(
             @PathVariable UUID id) {
         ViewingScheduleResponse schedule = viewingScheduleService.getScheduleById(id);
-        return ResponseEntity.ok(ApiResponse.ok("Lấy thông tin lịch hẹn thành công", schedule));
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin lịch hẹn thành công", schedule));
     }
 
 
@@ -77,7 +77,7 @@ public class ViewingScheduleController {
         UUID hostId = UUID.fromString(authentication.getName());
         Page<ViewingScheduleResponse> page = viewingScheduleService
                 .getHostSchedules(hostId, status, pageable);
-        return ResponseEntity.ok(ApiResponse.ok("Lấy danh sách lịch hẹn thành công", page));
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách lịch hẹn thành công", page));
     }
 
 
@@ -90,7 +90,7 @@ public class ViewingScheduleController {
         UUID clientId = UUID.fromString(authentication.getName());
         Page<ViewingScheduleResponse> page = viewingScheduleService
                 .getClientSchedules(clientId, status, pageable);
-        return ResponseEntity.ok(ApiResponse.ok("Lấy danh sách lịch hẹn thành công", page));
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách lịch hẹn thành công", page));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ public class ViewingScheduleController {
     public ResponseEntity<ApiResponse<ViewingScheduleResponse>> confirmSchedule(
             @PathVariable UUID id) {
         ViewingScheduleResponse saved = viewingScheduleService.confirmSchedule(id);
-        return ResponseEntity.ok(ApiResponse.ok("Xác nhận lịch hẹn xem nhà thành công", saved));
+        return ResponseEntity.ok(ApiResponse.success("Xác nhận lịch hẹn xem nhà thành công", saved));
     }
 
 
@@ -118,6 +118,6 @@ public class ViewingScheduleController {
         UUID actorId = UUID.fromString(authentication.getName());
         ViewingScheduleResponse saved = viewingScheduleService.cancelSchedule(
                 id, cancelRequest.getReason(), actorId);
-        return ResponseEntity.ok(ApiResponse.ok("Huỷ lịch hẹn xem nhà thành công", saved));
+        return ResponseEntity.ok(ApiResponse.success("Huỷ lịch hẹn xem nhà thành công", saved));
     }
 }

@@ -1,7 +1,7 @@
 package com.yoedu.yoedurealestateapi.service;
 
-import com.yoedu.yoedurealestateapi.dto.UpsertViewingScheduleRequest;
-import com.yoedu.yoedurealestateapi.dto.ViewingScheduleResponse;
+import com.yoedu.yoedurealestateapi.dto.view_schedule.UpsertViewingScheduleRequest;
+import com.yoedu.yoedurealestateapi.dto.view_schedule.ViewingScheduleResponse;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;

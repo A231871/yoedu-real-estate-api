@@ -17,17 +17,17 @@ public interface ViewingScheduleRepository extends JpaRepository<ViewingSchedule
 
     // GET /managed — không lọc status (lấy tất cả)
     Page<ViewingSchedule> findByHostIdAndDeletedAtIsNullOrderByScheduledStartDesc(
-        UUID hostId, Pageable pageable);
+            UUID hostId, Pageable pageable);
 
     // GET /managed?status=PENDING,CONFIRMED — lọc theo status
     Page<ViewingSchedule> findByHostIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
-        UUID hostId, List<String> status, Pageable pageable);
+            UUID hostId, List<String> status, Pageable pageable);
 
     // GET /requested — không lọc status
     Page<ViewingSchedule> findByClientIdAndDeletedAtIsNullOrderByScheduledStartDesc(
-        UUID clientId, Pageable pageable);
+            UUID clientId, Pageable pageable);
 
     // GET /requested?status=CONFIRMED — lọc theo status
     Page<ViewingSchedule> findByClientIdAndStatusInAndDeletedAtIsNullOrderByScheduledStartDesc(
-        UUID clientId, List<String> status, Pageable pageable);
+            UUID clientId, List<String> status, Pageable pageable);
 }

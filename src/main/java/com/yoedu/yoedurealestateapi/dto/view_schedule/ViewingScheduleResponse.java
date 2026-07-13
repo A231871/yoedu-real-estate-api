@@ -1,6 +1,13 @@
-package com.yoedu.yoedurealestateapi.dto;
+package com.yoedu.yoedurealestateapi.dto.view_schedule;
 
+import lombok.Getter;
+import lombok.Setter;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.UUID;
+@Setter
+@Getter
 public class ViewingScheduleResponse {
     private UUID id;
     private UUID listingId;

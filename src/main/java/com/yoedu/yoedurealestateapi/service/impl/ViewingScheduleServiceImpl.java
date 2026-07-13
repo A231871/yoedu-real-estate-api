@@ -2,9 +2,12 @@ package com.yoedu.yoedurealestateapi.service.impl;
 
 import com.yoedu.yoedurealestateapi.common.exception.BadRequestException;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
+import com.yoedu.yoedurealestateapi.domain.entities.Listing;
+import com.yoedu.yoedurealestateapi.domain.entities.User;
 import com.yoedu.yoedurealestateapi.domain.entities.ViewingSchedule;
-import com.yoedu.yoedurealestateapi.dto.UpsertViewingScheduleRequest;
-import com.yoedu.yoedurealestateapi.dto.ViewingScheduleResponse;
+import com.yoedu.yoedurealestateapi.domain.enums.ListingStatus;
+import com.yoedu.yoedurealestateapi.dto.view_schedule.UpsertViewingScheduleRequest;
+import com.yoedu.yoedurealestateapi.dto.view_schedule.ViewingScheduleResponse;
 import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.ViewingScheduleRepository;
 import com.yoedu.yoedurealestateapi.service.ViewingScheduleService;
@@ -15,28 +18,26 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 @Service
 @RequiredArgsConstructor
 public class ViewingScheduleServiceImpl implements ViewingScheduleService {
 
     private final ViewingScheduleRepository viewingScheduleRepository;
     private final ListingRepository listingRepository;
-    private final ModelMapper modelMapper;
 
     @Override
     @Transactional
     public ViewingScheduleResponse createSchedule(UpsertViewingScheduleRequest request, UUID clientId) {
-        Listing listing = listingRepository.findById(request.getListingId())
-                .filter(l -> l.getDeletedAt() == null)
+        Listing listing = listingRepository.findByIdAndDeletedAtIsNull(request.getListingId())
                 .orElseThrow(() -> new NotFoundException(
                         "Không tìm thấy tin đăng hoặc tin đăng đã bị xóa"));
 
-        if (!"APPROVED".equals(listing.getStatus())) {
+        if (!ListingStatus.APPROVED.equals(listing.getStatus())) {
             throw new BadRequestException(
                     "Chỉ có thể đặt lịch hẹn cho các tin đăng đã được phê duyệt");
         }
@@ -68,9 +69,7 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         schedule.setListingId(listing.getId());
         schedule.setClientId(clientId);
 
-        UUID hostId = (listing.getAgentId() != null)
-                ? listing.getAgentId()
-                : listing.getOwnerId();
+        UUID hostId = resolveHostId(listing);
         if (clientId.equals(hostId)) {
             throw new BadRequestException(
                     "Khách thuê và Chủ nhà/Môi giới không được phép trùng nhau");
@@ -88,6 +87,7 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         ViewingSchedule saved = viewingScheduleRepository.save(schedule);
         return toDto(saved);
     }
+
 
     @Override
     @Transactional
@@ -171,10 +171,36 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
                         "Không tìm thấy lịch hẹn hoặc lịch hẹn đã bị xóa"));
     }
 
+    private UUID resolveHostId(Listing listing) {
+        User host = listing.getAgent() != null ? listing.getAgent() : listing.getOwner();
+        if (host == null) {
+            throw new BadRequestException("Listing does not have a valid host");
+        }
+        return host.getId();
+    }
+
     private ViewingScheduleResponse toDto(ViewingSchedule entity) {
-        ViewingScheduleResponse dto = modelMapper.map(entity, ViewingScheduleResponse.class);
+        ViewingScheduleResponse dto = new ViewingScheduleResponse();
+        dto.setId(entity.getId());
+        dto.setListingId(entity.getListingId());
+        dto.setClientId(entity.getClientId());
+        dto.setHostId(entity.getHostId());
+        dto.setScheduledLocalTime(entity.getScheduledLocalTime());
         dto.setScheduledUtcTime(entity.getScheduledStart());
         dto.setScheduledEndUtcTime(entity.getScheduledEnd());
+        dto.setDurationMins(entity.getDurationMins());
+        dto.setTimezoneId(entity.getTimezoneId());
+        dto.setStatus(entity.getStatus());
+        dto.setNote(entity.getNote());
+        dto.setCancelReason(entity.getCancelReason());
+        dto.setCancelledBy(entity.getCancelledBy());
+        dto.setCancelledAt(entity.getCancelledAt());
+        dto.setConfirmedAt(entity.getConfirmedAt());
+        dto.setCompletedAt(entity.getCompletedAt());
+        dto.setReminderSent(entity.isReminderSent());
+        dto.setVersion(entity.getVersion());
         return dto;
     }
 }
+
+

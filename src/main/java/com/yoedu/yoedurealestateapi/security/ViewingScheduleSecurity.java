@@ -44,8 +44,8 @@ public class ViewingScheduleSecurity {
             return false;
         }
 
-        UUID ownerId = listing.getOwnerId();
-        UUID agentId = listing.getAgentId();
+        UUID ownerId = listing.getOwner().getId();
+        UUID agentId = listing.getAgent() != null ? listing.getAgent().getId() : null;
 
         return userId.equals(ownerId) || (agentId != null && userId.equals(agentId));
     }
