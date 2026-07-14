@@ -14,4 +14,5 @@ public abstract class ArchivableEntity extends AuditableEntity {
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
+
 }
