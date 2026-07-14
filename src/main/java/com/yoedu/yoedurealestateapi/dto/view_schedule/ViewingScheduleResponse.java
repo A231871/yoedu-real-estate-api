@@ -24,6 +24,7 @@ public class ViewingScheduleResponse {
     private UUID cancelledBy;
     private Instant cancelledAt;
     private Instant confirmedAt;
+    private Instant confirmationPromptedAt;
     private Instant completedAt;
     private boolean reminderSent;
     private Long version;

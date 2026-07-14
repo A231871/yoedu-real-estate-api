@@ -41,3 +41,8 @@ app:
     secret: ${JWT_SECRET}
     access-token-ttl-minutes: 480
     refresh-token-ttl-days: 7
+  viewing:
+    buffer-minutes: 15
+    cron:
+      prompt-feedback: "0 */15 * * * *"
+      auto-complete: "0 5 * * * *"

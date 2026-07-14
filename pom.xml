@@ -137,6 +137,16 @@
             <artifactId>spring-dotenv</artifactId>
             <version>5.1.0</version>
         </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>6.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>6.3.0</version>
+        </dependency>
     </dependencies>
 
     <build>

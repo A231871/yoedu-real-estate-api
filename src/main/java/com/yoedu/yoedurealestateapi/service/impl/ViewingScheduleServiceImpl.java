@@ -224,6 +224,7 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         dto.setCancelledBy(entity.getCancelledBy());
         dto.setCancelledAt(entity.getCancelledAt());
         dto.setConfirmedAt(entity.getConfirmedAt());
+        dto.setConfirmationPromptedAt(entity.getConfirmationPromptedAt());
         dto.setCompletedAt(entity.getCompletedAt());
         dto.setReminderSent(entity.isReminderSent());
         dto.setVersion(entity.getVersion());
