@@ -1,8 +1,8 @@
 package com.yoedu.yoedurealestateapi.controller;
 
 import com.yoedu.yoedurealestateapi.common.ApiResponse;
-import com.yoedu.yoedurealestateapi.domain.entities.ViewingSchedule;
-import com.yoedu.yoedurealestateapi.dto.view_schedule.UpsertViewingScheduleRequest;
+import com.yoedu.yoedurealestateapi.dto.view_schedule.CancelViewingScheduleRequest;
+import com.yoedu.yoedurealestateapi.dto.view_schedule.CreateViewingScheduleRequest;
 import com.yoedu.yoedurealestateapi.dto.view_schedule.ViewingScheduleResponse;
 import com.yoedu.yoedurealestateapi.service.ViewingScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,7 +45,7 @@ public class ViewingScheduleController {
     @PostMapping
     @Operation(summary = "Đặt lịch hẹn xem nhà", description = "Renter tạo yêu cầu xem nhà cho listing có trạng thái APPROVED")
     public ResponseEntity<ApiResponse<ViewingScheduleResponse>> createSchedule(
-            @Valid @RequestBody UpsertViewingScheduleRequest request,
+            @Valid @RequestBody CreateViewingScheduleRequest request,
             Authentication authentication) {
         UUID clientId = UUID.fromString(authentication.getName());
         ViewingScheduleResponse saved = viewingScheduleService.createSchedule(request, clientId);
@@ -100,7 +100,7 @@ public class ViewingScheduleController {
 
     @PutMapping("/{id}/confirm")
     @PreAuthorize("@viewingScheduleSecurity.isListingOwner(#id)")
-    @Operation(summary = "Xác nhận lịch hẹn", description = "Xác nhận lịch hẹn đang ở trạng thái PENDING")
+    @Operation(summary = "Xác nhận lịch hẹn", description = "Xác nhận lịch hẹn đang ở trạng thái PENDING_CONFIRMATION")
     public ResponseEntity<ApiResponse<ViewingScheduleResponse>> confirmSchedule(
             @PathVariable UUID id) {
         ViewingScheduleResponse saved = viewingScheduleService.confirmSchedule(id);
@@ -113,7 +113,7 @@ public class ViewingScheduleController {
     @Operation(summary = "Huỷ lịch hẹn", description = "Host/Agent huỷ lịch hẹn kèm lý do (cancel_reason)")
     public ResponseEntity<ApiResponse<ViewingScheduleResponse>> cancelSchedule(
             @PathVariable UUID id,
-            @Valid @RequestBody UpsertViewingScheduleRequest cancelRequest,
+            @Valid @RequestBody CancelViewingScheduleRequest cancelRequest,
             Authentication authentication) {
         UUID actorId = UUID.fromString(authentication.getName());
         ViewingScheduleResponse saved = viewingScheduleService.cancelSchedule(

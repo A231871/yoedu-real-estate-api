@@ -1,7 +1,6 @@
 package com.yoedu.yoedurealestateapi.domain.enums;
 
 public enum ViewingScheduleStatus {
-    PENDING,
     PENDING_CONFIRMATION,
     CONFIRMED,
     CANCELLED,

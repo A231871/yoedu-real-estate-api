@@ -1,6 +1,6 @@
 package com.yoedu.yoedurealestateapi.service;
 
-import com.yoedu.yoedurealestateapi.dto.view_schedule.UpsertViewingScheduleRequest;
+import com.yoedu.yoedurealestateapi.dto.view_schedule.CreateViewingScheduleRequest;
 import com.yoedu.yoedurealestateapi.dto.view_schedule.ViewingScheduleResponse;
 import java.util.List;
 import java.util.UUID;
@@ -9,7 +9,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface ViewingScheduleService {
 
-    ViewingScheduleResponse createSchedule(UpsertViewingScheduleRequest request, UUID clientId);
+    ViewingScheduleResponse createSchedule(CreateViewingScheduleRequest request, UUID clientId);
 
     ViewingScheduleResponse confirmSchedule(UUID id);
 

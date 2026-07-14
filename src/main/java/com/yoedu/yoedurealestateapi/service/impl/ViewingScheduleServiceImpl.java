@@ -7,7 +7,7 @@ import com.yoedu.yoedurealestateapi.domain.entities.User;
 import com.yoedu.yoedurealestateapi.domain.entities.ViewingSchedule;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingStatus;
 import com.yoedu.yoedurealestateapi.domain.enums.ViewingScheduleStatus;
-import com.yoedu.yoedurealestateapi.dto.view_schedule.UpsertViewingScheduleRequest;
+import com.yoedu.yoedurealestateapi.dto.view_schedule.CreateViewingScheduleRequest;
 import com.yoedu.yoedurealestateapi.dto.view_schedule.ViewingScheduleResponse;
 import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.ViewingScheduleRepository;
@@ -38,7 +38,7 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
 
     @Override
     @Transactional
-    public ViewingScheduleResponse createSchedule(UpsertViewingScheduleRequest request, UUID clientId) {
+    public ViewingScheduleResponse createSchedule(CreateViewingScheduleRequest request, UUID clientId) {
         Listing listing = listingRepository.findByIdAndDeletedAtIsNull(request.getListingId())
                 .orElseThrow(() -> new NotFoundException(
                         "Không tìm thấy tin đăng hoặc tin đăng đã bị xóa"));

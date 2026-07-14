@@ -11,7 +11,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class UpsertViewingScheduleRequest {
+public class CreateViewingScheduleRequest {
 
     @NotNull(message = "Listing id must not be blank")
     private UUID listingId;
@@ -27,8 +27,4 @@ public class UpsertViewingScheduleRequest {
 
     @Size(max = 1000, message = "Note must not exceed 1000 characters")
     private String note;
-
-    @NotBlank(message = "Cancel reason must not be blank")
-    @Size(max = 500, message = "Cancel reason must not exceed 500 characters")
-    private String reason;
 }
