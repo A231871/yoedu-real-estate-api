@@ -70,6 +70,9 @@ public class ViewingSchedule extends AuditableEntity {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    @Column(name = "confirmation_prompted_at")
+    private Instant confirmationPromptedAt;
+
     @Column(name = "reminder_sent", nullable = false)
     private boolean reminderSent;
 
