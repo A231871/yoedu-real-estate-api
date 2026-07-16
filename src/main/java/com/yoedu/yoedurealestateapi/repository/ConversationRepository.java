@@ -18,4 +18,6 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
   @Query("SELECT c FROM Conversation c WHERE (c.client.id = :userId AND c.clientDeletedAt IS NULL) OR (c.host.id = :userId AND c.hostDeletedAt IS NULL)")
   List<Conversation> findActiveConversationsForUser(@Param("userId") UUID userId);
 
+  @Query("SELECT COUNT(c) > 0 FROM Conversation c WHERE c.id = :conversationId AND (c.client.id = :userId OR c.host.id = :userId)")
+  boolean existsByIdAndParticipant(@Param("conversationId") UUID conversationId, @Param("userId") UUID userId);
 }
