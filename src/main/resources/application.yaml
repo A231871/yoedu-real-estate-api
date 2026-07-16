@@ -66,4 +66,11 @@ app:
       relay-port: ${BROKER_PORT:61613}
       relay-login: ${BROKER_LOGIN:guest}
       relay-passcode: ${BROKER_PASSCODE:guest}
-
+  listing-views:
+    redis-key-prefix: "views:count:"
+    events-key-prefix: "views:events:"
+    dedup-key-prefix: "views:dedup:"
+    listing-cache-prefix: "listing:approved:"
+    listing-cache-ttl-minutes: 15
+    cron:
+      flush: "0 */5 * * * *"
