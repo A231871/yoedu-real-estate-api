@@ -151,6 +151,11 @@
             <artifactId>shedlock-provider-jdbc-template</artifactId>
             <version>6.3.0</version>
         </dependency>
+        <!-- WebSocket / STOMP -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

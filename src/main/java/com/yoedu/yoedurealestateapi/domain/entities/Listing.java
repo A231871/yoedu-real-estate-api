@@ -1,4 +1,4 @@
-﻿package com.yoedu.yoedurealestateapi.domain.entities;
+package com.yoedu.yoedurealestateapi.domain.entities;
 
 import com.yoedu.yoedurealestateapi.domain.enums.ListingStatus;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
