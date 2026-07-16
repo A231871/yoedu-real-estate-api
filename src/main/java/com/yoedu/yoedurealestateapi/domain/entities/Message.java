@@ -1,5 +1,6 @@
 package com.yoedu.yoedurealestateapi.domain.entities;
 
+import com.yoedu.yoedurealestateapi.domain.enums.MessageType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -19,9 +20,6 @@ import java.time.OffsetDateTime;
 @Setter
 public class Message extends AuditableEntity {
 
-  public enum MessageType {
-    TEXT, IMAGE, FILE, SYSTEM
-  }
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "conversation_id", nullable = false)

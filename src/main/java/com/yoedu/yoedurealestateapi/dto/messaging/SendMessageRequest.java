@@ -1,6 +1,6 @@
 package com.yoedu.yoedurealestateapi.dto.messaging;
 
-import com.yoedu.yoedurealestateapi.domain.entities.Message;
+import com.yoedu.yoedurealestateapi.domain.enums.MessageType;
 import jakarta.validation.constraints.AssertTrue;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,7 +11,7 @@ public class SendMessageRequest {
 
   private String content;
 
-  private Message.MessageType messageType = Message.MessageType.TEXT;
+  private MessageType messageType = MessageType.TEXT;
 
   private String attachmentUrl;
   private String attachmentName;

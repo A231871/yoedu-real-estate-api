@@ -1,6 +1,6 @@
 package com.yoedu.yoedurealestateapi.dto.messaging;
 
-import com.yoedu.yoedurealestateapi.domain.entities.Message;
+import com.yoedu.yoedurealestateapi.domain.enums.MessageType;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Getter;
@@ -14,7 +14,7 @@ public class MessageResponse {
   private UUID conversationId;
   private UUID senderId;
   private String content;
-  private Message.MessageType messageType;
+  private MessageType messageType;
   private String attachmentUrl;
   private String attachmentName;
   private Integer attachmentSize;
