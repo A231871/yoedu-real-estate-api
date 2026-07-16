@@ -1,6 +1,15 @@
 spring:
   application:
     name: yoedu-real-estate-api
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      listener:
+        # Default false: prevents local dev startup crashes if Redis is not running.
+        # Set REDIS_LISTENER_AUTO_STARTUP=true in production/staging environments.
+        auto-startup: ${REDIS_LISTENER_AUTO_STARTUP:false}
   config:
     import: optional:file:.env[.properties]
 
@@ -16,18 +25,13 @@ spring:
       hibernate:
         format_sql: true
         default_batch_fetch_size: 100
-
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-
-flyway:
-  enabled: true
-  baseline-on-migrate: true
-  default-schema: public
-  schemas: public
-  locations: classpath:db/migration
+  flyway:
+    enabled: true
+    clean-disabled: true
+    baseline-on-migrate: true
+    default-schema: public
+    schemas: public
+    locations: classpath:db/migration
 
 springdoc:
   api-docs:
@@ -51,6 +55,17 @@ app:
     cron:
       prompt-feedback: "0 */15 * * * *"
       auto-complete: "0 5 * * * *"
+  ws:
+    allowed-origins:
+      - "http://localhost:*"
+      - "http://127.0.0.1:*"
+    broker:
+      # Set relay-enabled=true in production with a running RabbitMQ/ActiveMQ STOMP broker
+      relay-enabled: false
+      relay-host: ${BROKER_HOST:localhost}
+      relay-port: ${BROKER_PORT:61613}
+      relay-login: ${BROKER_LOGIN:guest}
+      relay-passcode: ${BROKER_PASSCODE:guest}
   listing-views:
     redis-key-prefix: "views:count:"
     events-key-prefix: "views:events:"
