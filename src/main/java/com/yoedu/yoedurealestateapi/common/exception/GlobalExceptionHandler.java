@@ -25,6 +25,13 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConflict(ConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+            ApiResponse.error(ex.getMessage())
+        );
+    }
+
     @ExceptionHandler({
         BadRequestException.class,
         ConstraintViolationException.class,
@@ -81,6 +88,13 @@ public class GlobalExceptionHandler {
                     .status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error(
                             "Khoảng thời gian này đã có lịch hẹn khác cho tin đăng này. Vui lòng chọn thời gian khác."));
+        }
+
+        if (message != null && message.contains("favorites_user_id_listing_id_key")) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error(
+                            "Tin đăng này đã có trong danh sách yêu thích"));
         }
 
         return ResponseEntity.badRequest().body(

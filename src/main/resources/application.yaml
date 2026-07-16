@@ -17,6 +17,11 @@ spring:
         format_sql: true
         default_batch_fetch_size: 100
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
 flyway:
   enabled: true
   baseline-on-migrate: true
@@ -46,3 +51,11 @@ app:
     cron:
       prompt-feedback: "0 */15 * * * *"
       auto-complete: "0 5 * * * *"
+  listing-views:
+    redis-key-prefix: "views:count:"
+    events-key-prefix: "views:events:"
+    dedup-key-prefix: "views:dedup:"
+    listing-cache-prefix: "listing:approved:"
+    listing-cache-ttl-minutes: 15
+    cron:
+      flush: "0 */5 * * * *"

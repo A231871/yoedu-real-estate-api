@@ -209,6 +209,11 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
+    public ListingSummaryResponse toListingSummary(Listing listing) {
+        return toListingSummaryResponse(listing);
+    }
+
+    @Override
     public Optional<ListingDetailResponse> getListingDetail(String id) {
         UUID uuid = UUID.fromString(id);
         return listingRepository
