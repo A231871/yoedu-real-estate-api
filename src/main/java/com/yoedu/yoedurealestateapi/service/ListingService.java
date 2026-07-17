@@ -3,11 +3,13 @@ package com.yoedu.yoedurealestateapi.service;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingDetailResponse;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingSummaryResponse;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingUpsertRequest;
-import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 public interface ListingService {
-    List<ListingSummaryResponse> getListingSummaries();
+    Page<ListingSummaryResponse> getListingSummaries(Pageable pageable);
 
     Optional<ListingDetailResponse> getListingDetail(String id);
 

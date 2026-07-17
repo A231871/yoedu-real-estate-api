@@ -7,8 +7,13 @@ import com.yoedu.yoedurealestateapi.dto.listing.ListingSummaryResponse;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingUpsertRequest;
 import com.yoedu.yoedurealestateapi.service.ListingService;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,8 +31,15 @@ public class ListingController {
     private final ListingService listingService;
 
     @GetMapping
-    public ApiResponse<List<ListingSummaryResponse>> getListings() {
-        return ApiResponse.success(listingService.getListingSummaries());
+    public ApiResponse<Page<ListingSummaryResponse>> getListings(
+        @ParameterObject
+        @PageableDefault(
+            size = 20,
+            sort = "createdAt",
+            direction = Sort.Direction.DESC
+        ) Pageable pageable
+    ) {
+        return ApiResponse.success(listingService.getListingSummaries(pageable));
     }
 
     @GetMapping("/{id}")
