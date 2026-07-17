@@ -9,6 +9,7 @@ import com.yoedu.yoedurealestateapi.domain.entities.ListingPrice;
 import com.yoedu.yoedurealestateapi.domain.entities.PropertyType;
 import com.yoedu.yoedurealestateapi.domain.entities.User;
 import com.yoedu.yoedurealestateapi.domain.entities.Ward;
+import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingDetailResponse;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingMediaDto;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingSummaryResponse;
@@ -202,9 +203,9 @@ public class ListingServiceImpl implements ListingService {
 
     // Service methods
     @Override
-    public Page<ListingSummaryResponse> getListingSummaries(Pageable pageable) {
+    public Page<ListingSummaryResponse> getListingSummaries(Pageable pageable, ListingType listingType) {
         return listingRepository
-            .findAll(pageable)
+            .findAllByListingType(listingType, pageable)
             .map(this::toListingSummaryResponse);
     }
 

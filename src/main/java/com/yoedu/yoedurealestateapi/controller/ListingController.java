@@ -2,6 +2,7 @@ package com.yoedu.yoedurealestateapi.controller;
 
 import com.yoedu.yoedurealestateapi.common.ApiResponse;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
+import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingDetailResponse;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingSummaryResponse;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingUpsertRequest;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -37,9 +39,10 @@ public class ListingController {
             size = 20,
             sort = "createdAt",
             direction = Sort.Direction.DESC
-        ) Pageable pageable
+        ) Pageable pageable,
+        @RequestParam ListingType listingType
     ) {
-        return ApiResponse.success(listingService.getListingSummaries(pageable));
+        return ApiResponse.success(listingService.getListingSummaries(pageable, listingType));
     }
 
     @GetMapping("/{id}")
