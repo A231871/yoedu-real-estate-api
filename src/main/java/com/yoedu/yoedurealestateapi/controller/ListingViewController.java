@@ -26,7 +26,7 @@ public class ListingViewController {
     @PostMapping("/{listingId}/views")
     @Operation(summary = "Ghi nhận lượt xem", description = """
             Dedup theo IP/ngày UTC (chống F5 bot), INCR Redis buffer kèm metadata IP/user.
-            Cron flush: GET → INSERT listing_views → DECRBY/LTRIM (không GETDEL trước DB).""")
+            Cron flush: Lua GETDEL count + snapshot events → INSERT listing_views.""")
     public ResponseEntity<ApiResponse<Void>> registerView(
             @PathVariable UUID listingId,
             HttpServletRequest request,
@@ -43,7 +43,7 @@ public class ListingViewController {
 
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
-                .body(ApiResponse.success("Đã ghi nhận lượt xem"));
+                .body(ApiResponse.success("Đã ghi nhận lượt xem",null));
     }
 
     private String resolveClientIp(HttpServletRequest request) {
