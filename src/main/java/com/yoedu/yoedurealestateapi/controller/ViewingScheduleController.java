@@ -60,7 +60,8 @@ public class ViewingScheduleController {
 
 
     @GetMapping("/{id}")
-    @Operation(summary = "Lấy chi tiết lịch hẹn", description = "Xem thông tin một lịch hẹn cụ thể")
+    @PreAuthorize("@viewingScheduleSecurity.isParticipant(#id)")
+    @Operation(summary = "Lấy chi tiết lịch hẹn", description = "Xem thông tin một lịch hẹn cụ thể — chỉ client hoặc host/agent mới có quyền")
     public ResponseEntity<ApiResponse<ViewingScheduleResponse>> getById(
             @PathVariable UUID id) {
         ViewingScheduleResponse schedule = viewingScheduleService.getScheduleById(id);
@@ -109,8 +110,8 @@ public class ViewingScheduleController {
 
 
     @PutMapping("/{id}/cancel")
-    @PreAuthorize("@viewingScheduleSecurity.isListingOwner(#id)")
-    @Operation(summary = "Huỷ lịch hẹn", description = "Host/Agent huỷ lịch hẹn kèm lý do (cancel_reason)")
+    @PreAuthorize("@viewingScheduleSecurity.isParticipant(#id)")
+    @Operation(summary = "Huỷ lịch hẹn", description = "Client hoặc Host/Agent huỷ lịch hẹn kèm lý do (cancel_reason)")
     public ResponseEntity<ApiResponse<ViewingScheduleResponse>> cancelSchedule(
             @PathVariable UUID id,
             @Valid @RequestBody CancelViewingScheduleRequest cancelRequest,

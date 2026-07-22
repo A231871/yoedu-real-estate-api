@@ -4,29 +4,42 @@ import com.yoedu.yoedurealestateapi.dto.listingview.ViewEventPayload;
 import com.yoedu.yoedurealestateapi.redis.ListingViewRedisKeys;
 import com.yoedu.yoedurealestateapi.repository.ListingViewRepository;
 import com.yoedu.yoedurealestateapi.service.ListingViewFlushService;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ListingViewFlushServiceImpl implements ListingViewFlushService {
 
+    /**
+     * Atomically transfers buffered view count and events from Redis to the caller.
+     *
+     * <p>Fix: when KEYS[1] (countKey) is nil or zero, we also DEL KEYS[2] (eventsKey)
+     * to prevent orphaned event lists from leaking Redis memory indefinitely.
+     */
     private static final String FLUSH_SCRIPT = """
             local count = redis.call('GETDEL', KEYS[1])
-            if not count then return {0, {}} end
+            if not count then
+                redis.call('DEL', KEYS[2])
+                return {0, {}}
+            end
             count = tonumber(count)
-            if count <= 0 then return {0, {}} end
+            if count <= 0 then
+                redis.call('DEL', KEYS[2])
+                return {0, {}}
+            end
             local events = redis.call('LRANGE', KEYS[2], 0, count - 1)
             redis.call('LTRIM', KEYS[2], count, -1)
             if redis.call('LLEN', KEYS[2]) == 0 then redis.call('DEL', KEYS[2]) end
@@ -39,8 +52,16 @@ public class ListingViewFlushServiceImpl implements ListingViewFlushService {
 
     private final DefaultRedisScript<List> flushScript = flushScript();
 
+    /**
+     * Scans all buffered view keys in Redis and flushes them to the database.
+     *
+     * <p>@Transactional is intentionally NOT applied here. The Redis GETDEL
+     * inside {@link #flushListing} is irreversible; wrapping the entire scan in
+     * one DB transaction means a late failure would roll back all DB inserts
+     * while the Redis data is already gone — resulting in data loss. Instead,
+     * each listing's flush operates in its own implicit repository transaction.
+     */
     @Override
-    @Transactional
     public void flushAll() {
         ScanOptions scanOptions = ScanOptions.scanOptions()
                 .match(redisKeys.countScanPattern())
@@ -65,6 +86,9 @@ public class ListingViewFlushServiceImpl implements ListingViewFlushService {
                     flushedViews += flushed;
                 }
             }
+        } catch (RedisConnectionFailureException ex) {
+            log.warn("Redis unavailable — skipping listing-view flush cycle: {}", ex.getMessage());
+            return;
         }
 
         if (flushedKeys > 0) {
@@ -98,7 +122,16 @@ public class ListingViewFlushServiceImpl implements ListingViewFlushService {
         try {
             int inserted = 0;
             for (String raw : rawEvents) {
-                ViewEventPayload event = ViewEventPayload.deserialize(raw);
+                // Guard: a single corrupted JSON payload must not abort the entire batch
+                ViewEventPayload event;
+                try {
+                    event = ViewEventPayload.deserialize(raw);
+                } catch (Exception deserializeEx) {
+                    log.error("Skipping corrupted view event payload for listing {}: {}",
+                            listingId, deserializeEx.getMessage());
+                    continue;
+                }
+
                 try {
                     listingViewRepository.insertView(
                             listingId,
@@ -107,10 +140,16 @@ public class ListingViewFlushServiceImpl implements ListingViewFlushService {
                             event.userAgent());
                     inserted++;
                 } catch (DataIntegrityViolationException ex) {
-                    log.debug(
-                            "Skipped duplicate daily view for listing {} ip {}",
-                            listingId,
-                            event.ipAddress());
+                    if (isDuplicateKeyViolation(ex)) {
+                        log.debug(
+                                "Skipped duplicate daily view for listing {} ip {}",
+                                listingId,
+                                event.ipAddress());
+                    } else {
+                        // A different constraint violation — log it, don't swallow silently
+                        log.error("Unexpected integrity violation inserting view for listing {}: {}",
+                                listingId, ex.getMostSpecificCause().getMessage());
+                    }
                 }
             }
 
@@ -129,6 +168,21 @@ public class ListingViewFlushServiceImpl implements ListingViewFlushService {
                     ex.getMessage());
             throw ex;
         }
+    }
+
+    /**
+     * Checks whether the violation is specifically a unique-key (duplicate) constraint
+     * (SQL State 23505). This avoids silently swallowing unrelated constraint errors
+     * such as NOT NULL violations or foreign key failures.
+     */
+    private static boolean isDuplicateKeyViolation(DataIntegrityViolationException ex) {
+        Throwable cause = ex.getMostSpecificCause();
+        if (cause instanceof SQLException sqlEx) {
+            return "23505".equals(sqlEx.getSQLState());
+        }
+        // Fallback string check for non-PSQLException drivers
+        String msg = cause != null ? cause.getMessage() : ex.getMessage();
+        return msg != null && msg.contains("duplicate key");
     }
 
     @SuppressWarnings("rawtypes")

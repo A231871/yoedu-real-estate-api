@@ -126,7 +126,8 @@ public class StompJwtChannelInterceptor implements ChannelInterceptor {
       List<String> roles = (List<String>) accessor.getSessionAttributes().get(ROLES_ATTRIBUTE);
       if (roles != null) {
         authorities = roles.stream()
-            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+            .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
+            .map(SimpleGrantedAuthority::new)
             .toList();
       } else {
         authorities = List.of();

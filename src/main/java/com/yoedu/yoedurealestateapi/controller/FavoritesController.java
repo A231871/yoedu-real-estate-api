@@ -11,6 +11,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -49,13 +50,13 @@ public class FavoritesController {
             Authentication authentication) {
         UUID userId = UUID.fromString(authentication.getName());
         favoriteService.removeFavorite(userId, listingId);
-        return ResponseEntity.ok(ApiResponse.success("Đã xóa khỏi danh sách yêu thích"));
+        return ResponseEntity.ok(ApiResponse.successMessage("Đã xóa khỏi danh sách yêu thích"));
     }
 
     @GetMapping
     @Operation(summary = "Lấy danh sách yêu thích của user hiện tại")
     public ResponseEntity<ApiResponse<Page<FavoriteResponse>>> getMyFavorites(
-            Pageable pageable,
+            @PageableDefault(size = 20) Pageable pageable,
             Authentication authentication) {
         UUID userId = UUID.fromString(authentication.getName());
         Page<FavoriteResponse> page = favoriteService.getMyFavorites(userId, pageable);

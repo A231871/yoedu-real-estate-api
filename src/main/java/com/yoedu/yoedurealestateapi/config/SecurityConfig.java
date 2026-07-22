@@ -1,6 +1,9 @@
 package com.yoedu.yoedurealestateapi.config;
 
 
+import com.yoedu.yoedurealestateapi.security.AppJwtProperties;
+import com.yoedu.yoedurealestateapi.security.JwtAccessDeniedHandler;
+import com.yoedu.yoedurealestateapi.security.JwtAuthenticationEntryPoint;
 import com.yoedu.yoedurealestateapi.security.JwtAuthenticationFilter;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -24,20 +27,31 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@EnableConfigurationProperties
+@EnableConfigurationProperties(AppJwtProperties.class)
 public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
-        http.
-                csrf(csrf -> csrf.disable())
+                                                   JwtAuthenticationFilter jwtAuthenticationFilter,
+                                                   JwtAuthenticationEntryPoint authenticationEntryPoint,
+                                                   JwtAccessDeniedHandler accessDeniedHandler) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/listing/*/views").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/listing").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/listing/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/location/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/amenity").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/property-type").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
@@ -61,9 +75,12 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
-                "http://127.0.0.1:*"
+                "https://localhost:*",
+                "http://127.0.0.1:*",
+                "https://127.0.0.1:*"
         ));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // PATCH included for partial-update endpoints
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);
@@ -73,6 +90,3 @@ public class SecurityConfig {
         return source;
     }
 }
-
-
-

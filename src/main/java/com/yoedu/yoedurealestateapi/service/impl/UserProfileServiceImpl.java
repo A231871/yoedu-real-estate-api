@@ -48,7 +48,7 @@ public class UserProfileServiceImpl implements UserProfileService {
   }
 
   private User getUserById(UUID userId) {
-    return userRepository.findById(userId)
+    return userRepository.findByIdAndDeletedAtIsNull(userId)
         .orElseThrow(() -> new NotFoundException("User not found"));
   }
 }
