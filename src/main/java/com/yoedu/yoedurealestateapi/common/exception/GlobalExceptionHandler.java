@@ -207,6 +207,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                     .body(ApiResponse.error("Email này đã được sử dụng. Vui lòng chọn email khác."));
         }
 
+        if (message != null && message.contains("idx_reviews_unique_schedule")) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error(
+                            "A review for this viewing schedule already exists."));
+        }
+
+        if (message != null && message.contains("idx_reviews_one_per_user")) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error(
+                            "You have already reviewed this listing."));
+        }
+
         // Unknown constraint violation — log internally, return opaque 500
         log.error("Unhandled DataIntegrityViolationException", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
