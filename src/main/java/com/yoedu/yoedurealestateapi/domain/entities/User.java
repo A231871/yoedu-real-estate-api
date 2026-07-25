@@ -10,7 +10,16 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "users")
+@Table(
+    name = "users",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_users_email", columnNames = "email"),
+        @UniqueConstraint(
+            name = "uk_users_provider",
+            columnNames = { "auth_provider", "provider_id" }
+        ),
+    }
+)
 public class User extends ArchivableEntity {
 
     @Column(name = "email", nullable = false, length = 255)
@@ -18,15 +27,6 @@ public class User extends ArchivableEntity {
 
     @Column(name = "password_hash", length = 255)
     private String passwordHash;
-
-    @Column(name = "full_name", nullable = false, length = 150)
-    private String fullName;
-
-    @Column(name = "phone", length = 20)
-    private String phone;
-
-    @Column(name = "avatar_url", length = 500)
-    private String avatarUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "auth_provider", nullable = false, length = 50)
@@ -46,6 +46,6 @@ public class User extends ArchivableEntity {
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;
 
-    @Column(name = "bio", columnDefinition = "text")
-    private String bio;
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private UserProfile profile;
 }
