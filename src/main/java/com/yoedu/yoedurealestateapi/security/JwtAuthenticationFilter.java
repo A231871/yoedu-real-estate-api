@@ -5,14 +5,13 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import java.io.IOException;
-import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -27,34 +26,51 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
-        String authHeader = request.getHeader(AUTHORIZATION_HEADER);
-
-        if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
-            String token = authHeader.substring(BEARER_PREFIX.length());
-
-            try {
-                if (jwtService.isAccessToken(token)) {
-                    String username = jwtService.extractUsername(token);
-                    List<SimpleGrantedAuthority> authorities = jwtService.extractRoles(token).stream()
-                            .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
-                            .map(SimpleGrantedAuthority::new)
-                            .toList();
-
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(username, null, authorities);
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                } else {
-                    SecurityContextHolder.clearContext();
-                }
-            } catch (JwtException | IllegalArgumentException ex) {
-                SecurityContextHolder.clearContext();
+    protected void doFilterInternal(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        FilterChain filterChain
+    ) throws ServletException, IOException {
+        try {
+            // Auth header exists?
+            String authHeader = request.getHeader(AUTHORIZATION_HEADER);
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                logger.error("No Bearer Header, skip processing");
+                return;
             }
+
+            // Access token valid?
+            final String token = authHeader.substring(BEARER_PREFIX.length());
+            if (!jwtService.validateToken(token, TokenType.ACCESS_TOKEN)) {
+                logger.error("Access token invalid or expired");
+                return;
+            }
+
+            // User Id exists?
+            String userId = jwtService.extractUserId(token);
+            if (userId == null) {
+                logger.error("No user Id from the access token");
+                return;
+            }
+
+            List<SimpleGrantedAuthority> authorities = jwtService
+                .extractRoles(token)
+                .stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .toList();
+
+            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+                userId,
+                null,
+                authorities
+            );
+
+            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+        } catch (JwtException | IllegalArgumentException e) {
+            logger.error("Failed to process JWT Token: " + e.getMessage());
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
     }
 }
-

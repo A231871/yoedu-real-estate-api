@@ -11,5 +11,6 @@ public record AppJwtProperties(
     @NotBlank String issuer,
     @NotBlank String secret,
     @Min(1) long accessTokenTtlMinutes,
+    @Min(1) long verificationTokenTtlMinutes,
     @Min(1) long refreshTokenTtlDays
-    ) {}
+) {}

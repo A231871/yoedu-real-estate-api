@@ -1,6 +1,5 @@
 package com.yoedu.yoedurealestateapi.security;
 
-import com.yoedu.yoedurealestateapi.security.JwtService;
 import io.jsonwebtoken.JwtException;
 import java.util.List;
 import java.util.Map;
@@ -89,14 +88,14 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
     }
 
     // ── Step 2: Validate JWT ───────────────────────────────────────────────
-    String username;
+    String userId;
     try {
-      if (!jwtService.isAccessToken(bearerToken)) {
+      if (!jwtService.validateToken(bearerToken, TokenType.ACCESS_TOKEN)) {
         log.warn("WS handshake rejected: token is not an access token");
         response.setStatusCode(HttpStatus.UNAUTHORIZED);
         return false;
       }
-      username = jwtService.extractUsername(bearerToken);
+      userId = jwtService.extractUserId(bearerToken);
     } catch (JwtException | IllegalArgumentException ex) {
       log.warn("WS handshake rejected: invalid or expired JWT — {}", ex.getMessage());
       response.setStatusCode(HttpStatus.UNAUTHORIZED);
@@ -106,9 +105,9 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
     // ── Step 3: Check Redis ban blacklist ──────────────────────────────────
     // Key set by the admin/ban service when a user is suspended.
     // Even if the JWT is still valid, a banned user cannot reconnect.
-    Boolean isBanned = redisTemplate.hasKey(BAN_KEY_PREFIX + username);
+    Boolean isBanned = redisTemplate.hasKey(BAN_KEY_PREFIX + userId);
     if (Boolean.TRUE.equals(isBanned)) {
-      log.warn("WS handshake rejected: user {} is banned", username);
+      log.warn("WS handshake rejected: user {} is banned", userId);
       response.setStatusCode(HttpStatus.FORBIDDEN);
       return false;
     }
@@ -116,7 +115,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
     // ── Step 4: Store username, expiry, and roles in session attributes ──────
     // The StompJwtChannelInterceptor reads this on the CONNECT frame
     // to set the Principal — avoiding a duplicate JWT parse.
-    attributes.put(USERNAME_ATTRIBUTE, username);
+    attributes.put(USERNAME_ATTRIBUTE, userId);
     try {
       java.time.Instant expiry = jwtService.extractExpiration(bearerToken);
       attributes.put(TOKEN_EXPIRY_ATTRIBUTE, expiry);
@@ -138,7 +137,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
     }
     response.getHeaders().set("Sec-WebSocket-Protocol", negotiatedStompProtocol);
 
-    log.debug("WS handshake approved for user: {} (protocol: {})", username, negotiatedStompProtocol);
+    log.debug("WS handshake approved for user: {} (protocol: {})", userId, negotiatedStompProtocol);
     return true;
   }
 
