@@ -11,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.yoedu.yoedurealestateapi.common.exception.GlobalExceptionHandler;
 import com.yoedu.yoedurealestateapi.domain.enums.ReportStatus;
+import com.yoedu.yoedurealestateapi.dto.moderation.AuditLogResponse;
+import com.yoedu.yoedurealestateapi.dto.moderation.ListingAuditHistoryResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ModerationListingSummaryResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ReportResponse;
 import com.yoedu.yoedurealestateapi.service.AdminModerationService;
@@ -79,5 +81,38 @@ class AdminModerationControllerTest {
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.content[0].reason", is("FRAUD")))
                 .andExpect(jsonPath("$.data.content[0].resolvedByName", is("Admin User")));
+    }
+
+    @Test
+    void getListingAuditHistory_Returns200OK() throws Exception {
+        UUID listingId = UUID.randomUUID();
+        ListingAuditHistoryResponse dto = new ListingAuditHistoryResponse(
+            1, Instant.now(), "ADD", listingId, "Nhà mặt tiền", "PENDING"
+        );
+
+        when(adminModerationService.getListingAuditHistory(listingId)).thenReturn(List.of(dto));
+
+        mockMvc.perform(get("/admin/moderation/listings/{id}/audit-history", listingId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data[0].title", is("Nhà mặt tiền")))
+                .andExpect(jsonPath("$.data[0].revisionType", is("ADD")));
+    }
+
+    @Test
+    void getSystemAuditLogs_Returns200OK() throws Exception {
+        AuditLogResponse dto = new AuditLogResponse(
+            UUID.randomUUID(), UUID.randomUUID(), "Admin User", "SUSPEND_LISTING",
+            "LISTING", UUID.randomUUID().toString(), null, null, "127.0.0.1", "Postman", Instant.now()
+        );
+        Page<AuditLogResponse> page = new PageImpl<>(List.of(dto), PageRequest.of(0, 20), 1);
+
+        when(adminModerationService.getSystemAuditLogs(any(), any(), any(), any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/admin/moderation/audit-logs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.content[0].action", is("SUSPEND_LISTING")))
+                .andExpect(jsonPath("$.data.content[0].actorName", is("Admin User")));
     }
 }

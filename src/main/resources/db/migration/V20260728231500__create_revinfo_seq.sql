@@ -1,0 +1,3 @@
+-- revinfo_seq was already created in V20260728230000__create_envers_audit_tables.sql.
+-- This migration is intentionally a no-op to preserve Flyway schema history integrity.
+-- Deleting it post-execution would corrupt the flyway_schema_history checksum validation.

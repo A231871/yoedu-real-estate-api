@@ -1,0 +1,28 @@
+feat(admin): [API-44] implement modulith envers audit aggregation and system audit logs endpoints
+
+Summary of Work Completed:
+- Configured Hibernate Envers in pom.xml and annotated Listing entity with @Audited (with RelationTargetAuditMode.NOT_AUDITED for un-audited associations: owner, agent, propertyType, ward).
+- Added Flyway migrations V20260728230000__create_envers_audit_tables.sql (revinfo, revinfo_seq, listings_aud) and V20260728231500__create_revinfo_seq.sql (no-op, preserves Flyway history integrity).
+- Created Spring Modulith exported interface ListingAuditApi in domain.listings.api and implementation ListingAuditApiImpl using Envers AuditReader to query revision history.
+- Created AuditLog entity (with @JdbcTypeCode(SqlTypes.INET) for PostgreSQL inet mapping) and AuditLogRepository with @EntityGraph({"actor"}) for eager loading.
+- Added ListingAuditHistoryResponse and AuditLogResponse DTOs.
+- Implemented GET /admin/moderation/listings/{id}/audit-history and GET /admin/moderation/audit-logs endpoints.
+- Applied fixes for 7 identified flaws before finalizing:
+  * Flaw 1: Removed listingSnapshot.getPrices() from Envers snapshot iteration — prices is @NotAudited, accessing it triggers LazyInitializationException. Price field removed from ListingAuditHistoryResponse DTO.
+  * Flaw 2: Replaced hardcoded if/else if filter branches in getSystemAuditLogs() with JPA Specification to dynamically combine actorId, entityType, and entityId filters — all combinations now work correctly.
+  * Flaw 3: Added null guards for DEL revision rows in ListingAuditApiImpl — on deletion revisions row[0] (listingSnapshot) is null; safe fallback to listingId and null for title/status.
+  * Flaw 5: Added listingRepository.existsById() guard in getListingAuditHistory() — invalid listing IDs now return HTTP 404 via NotFoundException instead of 200 with empty array.
+  * Flaw 6: Converted V20260728231500 to a no-op comment migration — cannot delete post-execution without corrupting Flyway schema history.
+  * Flaw 7: Applied LEFT JOIN FETCH on actor inside the Specification predicate — JpaSpecificationExecutor.findAll(Specification, Pageable) does not honour @EntityGraph overrides on derived-query methods, preventing N+1 queries.
+  * Flaw 8: Specification now handles entityType independently without requiring entityId.
+- Updated AdminModerationServiceTest (64 tests total) including new 404 assertion test for getListingAuditHistory_NotFound.
+
+Feature Workflow Narrative:
+- When an administrator requests GET /admin/moderation/listings/{id}/audit-history:
+  - If the listing does not exist in the database, the system immediately returns HTTP 404 Not Found via NotFoundException — no Envers query is executed.
+  - If the listing exists and has historical revisions, the system queries listings_aud and revinfo via Envers AuditReader, mapping each revision into a ListingAuditHistoryResponse (revision number, timestamp, revision type ADD/MOD/DEL, listing ID, title, status).
+  - On DEL revisions where the entity snapshot is null, the system safely returns the listing ID from the path variable with null title/status instead of throwing NullPointerException.
+- When an administrator requests GET /admin/moderation/audit-logs (with optional actorId, entityType, entityId query params):
+  - All provided filters are combined dynamically via JPA Specification — passing actorId AND entityType applies both simultaneously; passing only entityType filters by entity type alone; passing no params returns all records.
+  - Actor details are eagerly loaded via LEFT JOIN FETCH inside the Specification to prevent N+1 database queries.
+  - Results are returned as a paginated AuditLogResponse list with actor details, action type, IP address, timestamp, and JSON payload fields.
