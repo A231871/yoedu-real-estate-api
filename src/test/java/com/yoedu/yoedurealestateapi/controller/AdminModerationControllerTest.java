@@ -4,8 +4,11 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,8 +16,11 @@ import com.yoedu.yoedurealestateapi.common.exception.GlobalExceptionHandler;
 import com.yoedu.yoedurealestateapi.domain.enums.ReportStatus;
 import com.yoedu.yoedurealestateapi.dto.moderation.AuditLogResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ListingAuditHistoryResponse;
+import com.yoedu.yoedurealestateapi.dto.moderation.ListingStatusResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ModerationListingSummaryResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ReportResponse;
+import com.yoedu.yoedurealestateapi.dto.moderation.ResolveReportRequest;
+import com.yoedu.yoedurealestateapi.dto.moderation.SuspendListingRequest;
 import com.yoedu.yoedurealestateapi.service.AdminModerationService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -27,6 +33,9 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -34,9 +43,11 @@ class AdminModerationControllerTest {
 
     private MockMvc mockMvc;
     private AdminModerationService adminModerationService;
+    private UUID mockAdminId;
 
     @BeforeEach
     void setUp() {
+        mockAdminId = UUID.randomUUID();
         adminModerationService = mock(AdminModerationService.class);
         AdminModerationController controller = new AdminModerationController(adminModerationService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -114,5 +125,66 @@ class AdminModerationControllerTest {
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.content[0].action", is("SUSPEND_LISTING")))
                 .andExpect(jsonPath("$.data.content[0].actorName", is("Admin User")));
+    }
+
+    @Test
+    void getListingStatus_Returns200OK() throws Exception {
+        UUID listingId = UUID.randomUUID();
+        ListingStatusResponse responseDto = new ListingStatusResponse(listingId, "SUSPENDED");
+
+        when(adminModerationService.getListingStatus(listingId)).thenReturn(responseDto);
+
+        mockMvc.perform(get("/admin/moderation/listings/{id}/status", listingId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.status", is("SUSPENDED")));
+    }
+
+    @Test
+    void resolveReport_Returns200OK() throws Exception {
+        UUID reportId = UUID.randomUUID();
+        ReportResponse responseDto = new ReportResponse(
+            reportId, UUID.randomUUID(), "Listing Title",
+            UUID.randomUUID(), "Reporter Name", "FRAUD", "Fake listing",
+            "RESOLVED", "Handled", mockAdminId, "Admin User", Instant.now(), Instant.now()
+        );
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(mockAdminId.toString(), null);
+
+        when(adminModerationService.resolveReport(eq(reportId), eq(mockAdminId), any(ResolveReportRequest.class)))
+            .thenReturn(responseDto);
+
+        mockMvc.perform(put("/admin/moderation/reports/{id}/resolve", reportId)
+                .principal(auth)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "resolution": "RESOLVED",
+                      "adminNote": "Handled",
+                      "suspendListing": true
+                    }
+                    """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.status", is("RESOLVED")));
+    }
+
+    @Test
+    void suspendListingPost_Returns202Accepted() throws Exception {
+        UUID listingId = UUID.randomUUID();
+        Authentication auth = new UsernamePasswordAuthenticationToken(mockAdminId.toString(), null);
+
+        mockMvc.perform(post("/admin/moderation/listings/{id}/suspend", listingId)
+                .principal(auth)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "reason": "Violated terms of service"
+                    }
+                    """))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        verify(adminModerationService).suspendListing(eq(listingId), eq(mockAdminId), any(SuspendListingRequest.class));
     }
 }

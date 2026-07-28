@@ -5,8 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yoedu.yoedurealestateapi.common.exception.BadRequestException;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
 import com.yoedu.yoedurealestateapi.domain.entities.AuditLog;
 import com.yoedu.yoedurealestateapi.domain.entities.Listing;
@@ -18,25 +21,34 @@ import com.yoedu.yoedurealestateapi.domain.enums.ListingStatus;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
 import com.yoedu.yoedurealestateapi.domain.enums.ReportReason;
 import com.yoedu.yoedurealestateapi.domain.enums.ReportStatus;
+import com.yoedu.yoedurealestateapi.domain.event.ListingSuspensionRequestedEvent;
+import com.yoedu.yoedurealestateapi.domain.event.ReportResolvedEvent;
 import com.yoedu.yoedurealestateapi.domain.listings.api.ListingAuditApi;
 import com.yoedu.yoedurealestateapi.dto.moderation.AuditLogResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ListingAuditHistoryResponse;
+import com.yoedu.yoedurealestateapi.dto.moderation.ListingStatusResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ModerationListingSummaryResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ReportResponse;
+import com.yoedu.yoedurealestateapi.dto.moderation.ResolveReportRequest;
+import com.yoedu.yoedurealestateapi.dto.moderation.SuspendListingRequest;
 import com.yoedu.yoedurealestateapi.repository.AuditLogRepository;
 import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.ReportRepository;
+import com.yoedu.yoedurealestateapi.repository.UserRepository;
 import com.yoedu.yoedurealestateapi.service.impl.AdminModerationServiceImpl;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -57,6 +69,15 @@ class AdminModerationServiceTest {
 
     @Mock
     private ListingAuditApi listingAuditApi;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private AdminModerationServiceImpl adminModerationService;
@@ -107,10 +128,10 @@ class AdminModerationServiceTest {
         report.setReporter(reporter);
         report.setReason(ReportReason.FRAUD);
         report.setDescription("Tin đăng giả mạo");
-        report.setStatus(ReportStatus.RESOLVED);
-        report.setAdminNote("Đã xử lý gỡ tin");
-        report.setResolvedBy(adminUser);
-        report.setResolvedAt(Instant.now());
+        report.setStatus(ReportStatus.PENDING);
+        report.setAdminNote(null);
+        report.setResolvedBy(null);
+        report.setResolvedAt(null);
 
         auditLog = new AuditLog();
         auditLog.setId(UUID.randomUUID());
@@ -146,10 +167,10 @@ class AdminModerationServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<Report> reportPage = new PageImpl<>(List.of(report));
 
-        when(reportRepository.findByStatusAndDeletedAtIsNull(eq(ReportStatus.RESOLVED), any(Pageable.class)))
+        when(reportRepository.findByStatusAndDeletedAtIsNull(eq(ReportStatus.PENDING), any(Pageable.class)))
             .thenReturn(reportPage);
 
-        Page<ReportResponse> result = adminModerationService.getReportsByStatus(ReportStatus.RESOLVED, pageable);
+        Page<ReportResponse> result = adminModerationService.getReportsByStatus(ReportStatus.PENDING, pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -157,14 +178,11 @@ class AdminModerationServiceTest {
         assertEquals("FRAUD", dto.reason());
         assertEquals("Tin đăng giả mạo", dto.description());
         assertEquals("Tran Van B", dto.reporterName());
-        assertEquals("Admin User", dto.resolvedByName());
-        assertNotNull(dto.resolvedAt());
     }
 
     @Test
     void getListingAuditHistory_Success() {
         UUID listingId = listing.getId();
-        // price is omitted — ListingPrice is @NotAudited so Envers snapshots cannot include it
         ListingAuditHistoryResponse historyDto = new ListingAuditHistoryResponse(
             1, Instant.now(), "ADD", listingId, "Căn hộ trung tâm", "PENDING"
         );
@@ -193,7 +211,6 @@ class AdminModerationServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<AuditLog> logPage = new PageImpl<>(List.of(auditLog));
 
-        // Spec-based findAll is now used — match any Specification and any Pageable
         when(auditLogRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(logPage);
 
         Page<AuditLogResponse> result = adminModerationService.getSystemAuditLogs(null, null, null, pageable);
@@ -202,5 +219,76 @@ class AdminModerationServiceTest {
         assertEquals(1, result.getTotalElements());
         assertEquals("SUSPEND_LISTING", result.getContent().get(0).action());
         assertEquals("Admin User", result.getContent().get(0).actorName());
+    }
+
+    @Test
+    void resolveReport_ResolveAndCascadeSuspend_Success() {
+        UUID reportId = report.getId();
+        UUID adminId = adminUser.getId();
+        ResolveReportRequest request = new ResolveReportRequest("RESOLVED", "Vi phạm chính sách", true);
+
+        when(reportRepository.findWithListingByIdAndDeletedAtIsNull(reportId)).thenReturn(Optional.of(report));
+        when(userRepository.findByIdAndDeletedAtIsNull(adminId)).thenReturn(Optional.of(adminUser));
+
+        ReportResponse response = adminModerationService.resolveReport(reportId, adminId, request);
+
+        assertNotNull(response);
+        assertEquals("RESOLVED", response.status());
+
+        verify(reportRepository).save(report);
+        verify(eventPublisher).publishEvent(any(ListingSuspensionRequestedEvent.class));
+        verify(eventPublisher).publishEvent(any(ReportResolvedEvent.class));
+    }
+
+    @Test
+    void resolveReport_AlreadyResolved_ThrowsBadRequest() {
+        UUID reportId = report.getId();
+        UUID adminId = adminUser.getId();
+        report.setStatus(ReportStatus.RESOLVED);
+        ResolveReportRequest request = new ResolveReportRequest("RESOLVED", "Note", false);
+
+        when(reportRepository.findWithListingByIdAndDeletedAtIsNull(reportId)).thenReturn(Optional.of(report));
+
+        assertThrows(BadRequestException.class,
+            () -> adminModerationService.resolveReport(reportId, adminId, request));
+    }
+
+    @Test
+    void suspendListing_Success() {
+        UUID listingId = listing.getId();
+        UUID adminId = adminUser.getId();
+        SuspendListingRequest request = new SuspendListingRequest("Thông tin sai sự thật");
+
+        when(listingRepository.findWithOwnerByIdAndDeletedAtIsNull(listingId)).thenReturn(Optional.of(listing));
+        when(userRepository.findByIdAndDeletedAtIsNull(adminId)).thenReturn(Optional.of(adminUser));
+
+        adminModerationService.suspendListing(listingId, adminId, request);
+
+        verify(eventPublisher).publishEvent(any(ListingSuspensionRequestedEvent.class));
+    }
+
+    @Test
+    void suspendListing_AlreadySuspended_ThrowsBadRequest() {
+        UUID listingId = listing.getId();
+        UUID adminId = adminUser.getId();
+        listing.setStatus(ListingStatus.SUSPENDED);
+        SuspendListingRequest request = new SuspendListingRequest("Reason");
+
+        when(listingRepository.findWithOwnerByIdAndDeletedAtIsNull(listingId)).thenReturn(Optional.of(listing));
+
+        assertThrows(BadRequestException.class,
+            () -> adminModerationService.suspendListing(listingId, adminId, request));
+    }
+
+    @Test
+    void getListingStatus_Success() {
+        UUID listingId = listing.getId();
+        when(listingRepository.findStatusById(listingId)).thenReturn(Optional.of(ListingStatus.PENDING));
+
+        ListingStatusResponse response = adminModerationService.getListingStatus(listingId);
+
+        assertNotNull(response);
+        assertEquals(listingId, response.listingId());
+        assertEquals("PENDING", response.status());
     }
 }

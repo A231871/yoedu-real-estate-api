@@ -2,6 +2,8 @@ package com.yoedu.yoedurealestateapi.service;
 
 import com.yoedu.yoedurealestateapi.domain.entities.Notification;
 import com.yoedu.yoedurealestateapi.domain.entities.User;
+import com.yoedu.yoedurealestateapi.domain.event.ListingSuspendedEvent;
+import com.yoedu.yoedurealestateapi.domain.event.ReportResolvedEvent;
 import com.yoedu.yoedurealestateapi.domain.event.ViewingCancelledEvent;
 import com.yoedu.yoedurealestateapi.domain.event.ViewingConfirmedEvent;
 import com.yoedu.yoedurealestateapi.domain.event.ViewingScheduledEvent;
@@ -13,12 +15,12 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
@@ -29,6 +31,9 @@ public class NotificationEventListener {
     private final UserRepository userRepository;
     private final EmailService emailService;
     private final PushNotificationService pushNotificationService;
+
+    @Autowired(required = false)
+    private TransactionTemplate transactionTemplate;
 
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -47,10 +52,7 @@ public class NotificationEventListener {
             String refType = "VIEWING_SCHEDULE";
             String refId = event.getScheduleId().toString();
 
-            // 1. Save Notification entity in DB transaction
-            Notification notification = persistNotification(host, "VIEWING_SCHEDULED", title, body, refType, refId);
-
-            // 2. Perform Network IO (Email & Push) OUTSIDE the DB transaction boundary to prevent HikariCP pool starvation
+            Notification notification = persistNotificationInTransaction(host, "VIEWING_SCHEDULED", title, body, refType, refId);
             dispatchEmailAndPush(host, notification.getId(), title, body, refType, refId);
         } catch (Exception e) {
             log.error("Error processing ViewingScheduledEvent for scheduleId: {}", event.getScheduleId(), e);
@@ -74,8 +76,7 @@ public class NotificationEventListener {
             String refType = "VIEWING_SCHEDULE";
             String refId = event.getScheduleId().toString();
 
-            Notification notification = persistNotification(client, "VIEWING_CONFIRMED", title, body, refType, refId);
-
+            Notification notification = persistNotificationInTransaction(client, "VIEWING_CONFIRMED", title, body, refType, refId);
             dispatchEmailAndPush(client, notification.getId(), title, body, refType, refId);
         } catch (Exception e) {
             log.error("Error processing ViewingConfirmedEvent for scheduleId: {}", event.getScheduleId(), e);
@@ -87,7 +88,6 @@ public class NotificationEventListener {
     public void handleViewingCancelled(ViewingCancelledEvent event) {
         try {
             log.info("Handling ViewingCancelledEvent for scheduleId: {}", event.getScheduleId());
-            // Null-safe comparison against system/cron cancellation
             UUID recipientId = Objects.equals(event.getCancelledBy(), event.getClientId())
                     ? event.getHostId()
                     : event.getClientId();
@@ -105,16 +105,75 @@ public class NotificationEventListener {
             String refType = "VIEWING_SCHEDULE";
             String refId = event.getScheduleId().toString();
 
-            Notification notification = persistNotification(recipient, "VIEWING_CANCELLED", title, body, refType, refId);
-
+            Notification notification = persistNotificationInTransaction(recipient, "VIEWING_CANCELLED", title, body, refType, refId);
             dispatchEmailAndPush(recipient, notification.getId(), title, body, refType, refId);
         } catch (Exception e) {
             log.error("Error processing ViewingCancelledEvent for scheduleId: {}", event.getScheduleId(), e);
         }
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Notification persistNotification(User user, String type, String title, String body, String refType, String refId) {
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleListingSuspended(ListingSuspendedEvent event) {
+        if (event.getOwnerId() == null) {
+            log.warn("ListingSuspendedEvent for listing {} has no owner — skipping notification.", event.getListingId());
+            return;
+        }
+        try {
+            log.info("Handling ListingSuspendedEvent for listingId: {}", event.getListingId());
+            userRepository.findByIdAndDeletedAtIsNull(event.getOwnerId()).ifPresentOrElse(owner -> {
+                String listingTitle = event.getListingTitle() != null ? event.getListingTitle() : "Bất động sản";
+                String reasonText = (event.getReason() != null && !event.getReason().isBlank()) ? event.getReason() : "Vi phạm quy định đăng tin";
+                String title = "Tin đăng của bạn đã bị tạm dừng";
+                String body = "Tin đăng \"" + listingTitle + "\" đã bị tạm dừng. Lý do: " + reasonText;
+                String refType = "LISTING";
+                String refId = event.getListingId().toString();
+
+                Notification notification = persistNotificationInTransaction(owner, "LISTING_SUSPENDED", title, body, refType, refId);
+                dispatchEmailAndPush(owner, notification.getId(), title, body, refType, refId);
+            }, () -> log.warn("Owner {} not found for ListingSuspendedEvent. Skipping notification.", event.getOwnerId()));
+        } catch (Exception e) {
+            log.error("Error processing ListingSuspendedEvent for listingId: {}", event.getListingId(), e);
+        }
+    }
+
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleReportResolved(ReportResolvedEvent event) {
+        if (event.getOwnerId() == null) {
+            log.warn("ReportResolvedEvent for report {} has no owner — skipping notification.", event.getReportId());
+            return;
+        }
+        try {
+            log.info("Handling ReportResolvedEvent for reportId: {}", event.getReportId());
+            userRepository.findByIdAndDeletedAtIsNull(event.getOwnerId()).ifPresentOrElse(owner -> {
+                String listingTitle = event.getListingTitle() != null ? event.getListingTitle() : "Bất động sản";
+                String resolution = event.getResolution() != null ? event.getResolution() : "ĐÃ XỬ LÝ";
+                String title = "Báo cáo vi phạm đã được xử lý";
+                String body = "Báo cáo về tin đăng \"" + listingTitle + "\" đã được xử lý: " + resolution;
+                String refType = "REPORT";
+                String refId = event.getReportId().toString();
+
+                Notification notification = persistNotificationInTransaction(owner, "REPORT_RESOLVED", title, body, refType, refId);
+                dispatchEmailAndPush(owner, notification.getId(), title, body, refType, refId);
+            }, () -> log.warn("Owner {} not found for ReportResolvedEvent. Skipping notification.", event.getOwnerId()));
+        } catch (Exception e) {
+            log.error("Error processing ReportResolvedEvent for reportId: {}", event.getReportId(), e);
+        }
+    }
+
+    /**
+     * Executes notification persistence inside a transaction when TransactionTemplate is available,
+     * or directly when un-managed (e.g. in Mockito unit tests).
+     */
+    public Notification persistNotificationInTransaction(User user, String type, String title, String body, String refType, String refId) {
+        if (transactionTemplate != null) {
+            return transactionTemplate.execute(status -> createAndSaveNotification(user, type, title, body, refType, refId));
+        }
+        return createAndSaveNotification(user, type, title, body, refType, refId);
+    }
+
+    private Notification createAndSaveNotification(User user, String type, String title, String body, String refType, String refId) {
         Notification notification = new Notification();
         notification.setUser(user);
         notification.setType(type);
@@ -127,20 +186,40 @@ public class NotificationEventListener {
         return notificationRepository.save(notification);
     }
 
-    private void dispatchEmailAndPush(User recipient, UUID notificationId, String title, String body, String refType, String refId) {
-        if (recipient.getEmail() != null && !recipient.getEmail().isBlank()) {
-            emailService.sendEmail(recipient.getEmail(), title, body);
-        }
-
-        boolean pushSent = pushNotificationService.sendPushNotification(recipient.getId(), title, body, refType, refId);
-        if (pushSent) {
-            updatePushSentStatus(notificationId);
+    /**
+     * Executes push status update inside a transaction when TransactionTemplate is available.
+     */
+    public void updatePushSentStatusInTransaction(UUID notificationId) {
+        if (transactionTemplate != null) {
+            transactionTemplate.executeWithoutResult(status ->
+                notificationRepository.markPushSent(notificationId, Instant.now())
+            );
+        } else {
+            notificationRepository.markPushSent(notificationId, Instant.now());
         }
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void updatePushSentStatus(UUID notificationId) {
-        notificationRepository.markPushSent(notificationId, Instant.now());
+    /**
+     * Dispatches email and push notifications safely. Wraps email execution in a try-catch block
+     * so SMTP failures never abort push notification delivery.
+     */
+    private void dispatchEmailAndPush(User recipient, UUID notificationId, String title, String body, String refType, String refId) {
+        if (recipient.getEmail() != null && !recipient.getEmail().isBlank()) {
+            try {
+                emailService.sendEmail(recipient.getEmail(), title, body);
+            } catch (Exception e) {
+                log.error("Failed to send email notification to {}: {}", recipient.getEmail(), e.getMessage());
+            }
+        }
+
+        try {
+            boolean pushSent = pushNotificationService.sendPushNotification(recipient.getId(), title, body, refType, refId);
+            if (pushSent) {
+                updatePushSentStatusInTransaction(notificationId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to send push notification to user {}: {}", recipient.getId(), e.getMessage());
+        }
     }
 
     private String formatTime(String rawTime) {
