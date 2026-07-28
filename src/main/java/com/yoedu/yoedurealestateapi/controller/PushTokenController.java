@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/notifications/tokens")
+@RequestMapping("/notifications/tokens")
 @RequiredArgsConstructor
 @Tag(name = "Push Notifications", description = "APIs quản lý Push Notification Tokens")
 public class PushTokenController {

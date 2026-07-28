@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.regex.Pattern;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 @RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Endpoints for user registration and authentication")
 public class AuthController {
