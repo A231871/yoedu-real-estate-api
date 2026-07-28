@@ -3,7 +3,9 @@ package com.yoedu.yoedurealestateapi.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,6 +27,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class AdminPropertyTypeServiceTest {
@@ -49,6 +52,61 @@ class AdminPropertyTypeServiceTest {
         propertyType.setIcon("building");
         propertyType.setSortOrder(1);
         propertyType.setIsActive(true);
+    }
+
+    @Test
+    void getAllPropertyTypes_Success() {
+        when(propertyTypeRepository.findAllByOrderBySortOrderAsc()).thenReturn(List.of(propertyType));
+
+        List<PropertyTypeResponse> list = adminPropertyTypeService.getAllPropertyTypes();
+
+        assertEquals(1, list.size());
+        assertEquals("Căn hộ", list.get(0).name());
+        assertTrue(list.get(0).isActive());
+    }
+
+    @Test
+    void getPropertyTypeById_Success() {
+        when(propertyTypeRepository.findById(1)).thenReturn(Optional.of(propertyType));
+
+        PropertyTypeResponse response = adminPropertyTypeService.getPropertyTypeById(1);
+
+        assertNotNull(response);
+        assertEquals("can-ho", response.slug());
+    }
+
+    @Test
+    void getPropertyTypeById_NotFound_ThrowsException() {
+        when(propertyTypeRepository.findById(99)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> adminPropertyTypeService.getPropertyTypeById(99));
+    }
+
+    @Test
+    void createPropertyType_Success() {
+        UpdatePropertyTypeRequest request = new UpdatePropertyTypeRequest("Nhà trọ", "nha-tro", "home", null, null);
+        when(propertyTypeRepository.existsBySlug("nha-tro")).thenReturn(false);
+        when(propertyTypeRepository.save(any(PropertyType.class))).thenAnswer(inv -> {
+            PropertyType p = inv.getArgument(0);
+            p.setId(2);
+            return p;
+        });
+
+        PropertyTypeResponse response = adminPropertyTypeService.createPropertyType(request);
+
+        assertNotNull(response);
+        assertEquals("2", response.id());
+        assertEquals("Nhà trọ", response.name());
+        assertEquals(0, response.sortOrder());
+        assertTrue(response.isActive());
+    }
+
+    @Test
+    void createPropertyType_DuplicateSlug_ThrowsException() {
+        UpdatePropertyTypeRequest request = new UpdatePropertyTypeRequest("Căn hộ", "can-ho", null, null, null);
+        when(propertyTypeRepository.existsBySlug("can-ho")).thenReturn(true);
+
+        assertThrows(ConflictException.class, () -> adminPropertyTypeService.createPropertyType(request));
     }
 
     @Test
@@ -94,21 +152,26 @@ class AdminPropertyTypeServiceTest {
     }
 
     @Test
-    void getAllPropertyTypes_Success() {
-        when(propertyTypeRepository.findAll()).thenReturn(List.of(propertyType));
-
-        List<PropertyTypeResponse> list = adminPropertyTypeService.getAllPropertyTypes();
-
-        assertEquals(1, list.size());
-        assertEquals("Căn hộ", list.get(0).name());
-    }
-
-    @Test
     void deletePropertyType_Success() {
         when(propertyTypeRepository.existsById(1)).thenReturn(true);
 
         adminPropertyTypeService.deletePropertyType(1);
 
         verify(propertyTypeRepository).deleteById(1);
+    }
+
+    @Test
+    void deletePropertyType_NotFound_ThrowsException() {
+        when(propertyTypeRepository.existsById(99)).thenReturn(false);
+
+        assertThrows(NotFoundException.class, () -> adminPropertyTypeService.deletePropertyType(99));
+    }
+
+    @Test
+    void deletePropertyType_Conflict_ThrowsException() {
+        when(propertyTypeRepository.existsById(1)).thenReturn(true);
+        doThrow(new DataIntegrityViolationException("FK constraint")).when(propertyTypeRepository).deleteById(1);
+
+        assertThrows(ConflictException.class, () -> adminPropertyTypeService.deletePropertyType(1));
     }
 }

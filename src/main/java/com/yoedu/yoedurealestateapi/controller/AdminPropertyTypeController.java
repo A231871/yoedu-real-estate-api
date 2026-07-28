@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,7 +31,7 @@ public class AdminPropertyTypeController {
     private final AdminPropertyTypeService adminPropertyTypeService;
 
     @GetMapping
-    @Operation(summary = "Get all property types", description = "Retrieves all property types for administration")
+    @Operation(summary = "Get all property types", description = "Retrieves all property types ordered by sortOrder")
     public ResponseEntity<ApiResponse<List<PropertyTypeResponse>>> getAllPropertyTypes() {
         List<PropertyTypeResponse> result = adminPropertyTypeService.getAllPropertyTypes();
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách loại bất động sản thành công", result));
@@ -48,7 +49,8 @@ public class AdminPropertyTypeController {
     public ResponseEntity<ApiResponse<PropertyTypeResponse>> createPropertyType(
             @Valid @RequestBody UpdatePropertyTypeRequest request) {
         PropertyTypeResponse result = adminPropertyTypeService.createPropertyType(request);
-        return ResponseEntity.ok(ApiResponse.success("Tạo loại bất động sản thành công", result));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Tạo loại bất động sản thành công", result));
     }
 
     @PutMapping("/{id}")

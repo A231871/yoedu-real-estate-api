@@ -11,7 +11,9 @@ import com.yoedu.yoedurealestateapi.service.AdminPropertyTypeService;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,14 +30,15 @@ public class AdminPropertyTypeServiceImpl implements AdminPropertyTypeService {
             propertyType.getName(),
             propertyType.getSlug(),
             propertyType.getIcon(),
-            propertyType.getSortOrder()
+            propertyType.getSortOrder(),
+            propertyType.getIsActive()
         );
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PropertyTypeResponse> getAllPropertyTypes() {
-        return propertyTypeRepository.findAll()
+        return propertyTypeRepository.findAllByOrderBySortOrderAsc()
             .stream()
             .map(this::toPropertyTypeResponse)
             .collect(Collectors.toList());
@@ -51,26 +54,25 @@ public class AdminPropertyTypeServiceImpl implements AdminPropertyTypeService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "propertyTypes", allEntries = true)
     public PropertyTypeResponse createPropertyType(UpdatePropertyTypeRequest request) {
-        if (propertyTypeRepository.existsBySlugAndIdNot(request.slug(), -1)) {
+        if (propertyTypeRepository.existsBySlug(request.slug())) {
             throw new ConflictException("Slug đã được sử dụng");
         }
         PropertyType propertyType = new PropertyType();
         propertyType.setName(request.name());
         propertyType.setSlug(request.slug());
         propertyType.setIcon(request.icon());
-        if (request.sortOrder() != null) {
-            propertyType.setSortOrder(request.sortOrder());
-        }
-        if (request.isActive() != null) {
-            propertyType.setIsActive(request.isActive());
-        }
+        propertyType.setSortOrder(request.sortOrder() != null ? request.sortOrder() : 0);
+        propertyType.setIsActive(request.isActive() != null ? request.isActive() : true);
+
         PropertyType saved = propertyTypeRepository.save(propertyType);
         return toPropertyTypeResponse(saved);
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = "propertyTypes", allEntries = true)
     public PropertyTypeResponse updatePropertyType(Integer id, UpdatePropertyTypeRequest request) {
         PropertyType propertyType = propertyTypeRepository.findById(id)
             .orElseThrow(() -> new NotFoundException("Loại bất động sản không tồn tại"));
@@ -81,9 +83,7 @@ public class AdminPropertyTypeServiceImpl implements AdminPropertyTypeService {
 
         propertyType.setName(request.name());
         propertyType.setSlug(request.slug());
-        if (request.icon() != null) {
-            propertyType.setIcon(request.icon());
-        }
+        propertyType.setIcon(request.icon());
         if (request.sortOrder() != null) {
             propertyType.setSortOrder(request.sortOrder());
         }
@@ -104,10 +104,16 @@ public class AdminPropertyTypeServiceImpl implements AdminPropertyTypeService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "propertyTypes", allEntries = true)
     public void deletePropertyType(Integer id) {
         if (!propertyTypeRepository.existsById(id)) {
             throw new NotFoundException("Loại bất động sản không tồn tại");
         }
-        propertyTypeRepository.deleteById(id);
+        try {
+            propertyTypeRepository.deleteById(id);
+            propertyTypeRepository.flush();
+        } catch (DataIntegrityViolationException ex) {
+            throw new ConflictException("Không thể xóa loại bất động sản đang được sử dụng bởi các bài đăng");
+        }
     }
 }
