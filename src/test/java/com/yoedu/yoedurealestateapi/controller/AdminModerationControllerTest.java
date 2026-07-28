@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -15,12 +16,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.yoedu.yoedurealestateapi.common.exception.GlobalExceptionHandler;
 import com.yoedu.yoedurealestateapi.domain.enums.ReportStatus;
 import com.yoedu.yoedurealestateapi.dto.moderation.AuditLogResponse;
+import com.yoedu.yoedurealestateapi.dto.moderation.GdprPurgeResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ListingAuditHistoryResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ListingStatusResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ModerationListingSummaryResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ReportResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ResolveReportRequest;
 import com.yoedu.yoedurealestateapi.dto.moderation.SuspendListingRequest;
+import com.yoedu.yoedurealestateapi.repository.UserRepository;
 import com.yoedu.yoedurealestateapi.service.AdminModerationService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -43,13 +46,15 @@ class AdminModerationControllerTest {
 
     private MockMvc mockMvc;
     private AdminModerationService adminModerationService;
+    private UserRepository userRepository;
     private UUID mockAdminId;
 
     @BeforeEach
     void setUp() {
         mockAdminId = UUID.randomUUID();
         adminModerationService = mock(AdminModerationService.class);
-        AdminModerationController controller = new AdminModerationController(adminModerationService);
+        userRepository = mock(UserRepository.class);
+        AdminModerationController controller = new AdminModerationController(adminModerationService, userRepository);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .setControllerAdvice(new GlobalExceptionHandler())
@@ -170,7 +175,7 @@ class AdminModerationControllerTest {
     }
 
     @Test
-    void suspendListingPost_Returns202Accepted() throws Exception {
+    void suspendListing_Returns202Accepted() throws Exception {
         UUID listingId = UUID.randomUUID();
         Authentication auth = new UsernamePasswordAuthenticationToken(mockAdminId.toString(), null);
 
@@ -186,5 +191,20 @@ class AdminModerationControllerTest {
                 .andExpect(jsonPath("$.success", is(true)));
 
         verify(adminModerationService).suspendListing(eq(listingId), eq(mockAdminId), any(SuspendListingRequest.class));
+    }
+
+    @Test
+    void purgeUserGdpr_Returns200OK() throws Exception {
+        UUID targetUserId = UUID.randomUUID();
+        Authentication auth = new UsernamePasswordAuthenticationToken(mockAdminId.toString(), null);
+        GdprPurgeResponse responseDto = new GdprPurgeResponse(targetUserId, Instant.now(), "purged-" + targetUserId + "@gdpr.anonymized", 2);
+
+        when(adminModerationService.purgeUserGdpr(eq(targetUserId), eq(mockAdminId))).thenReturn(responseDto);
+
+        mockMvc.perform(delete("/admin/moderation/users/{userId}/gdpr-purge", targetUserId)
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.anonymizedEmail", is("purged-" + targetUserId + "@gdpr.anonymized")));
     }
 }

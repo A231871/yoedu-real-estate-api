@@ -1,39 +1,19 @@
-feat(admin): [API-45] implement cascading suspension workflow, async suspension requested events, status polling, and notification handling
+feat(admin): [API-46] implement GDPR native SQL PII purge task and users_aud envers audit tracking
 
-Summary of Work Completed & 23-Point Audit Fixes:
-- Added SUSPENDED enum value to ListingStatus.
-- Implemented API-45 async suspension event choreography:
-  * Created ListingSuspensionRequestedEvent (carrying listingId, adminId, reason).
-  * Created ListingSuspensionListener in domain.listings.listener to handle listing status updates to SUSPENDED inside the listings domain boundary (resolves Modulith encapsulation & cross-domain repository save rules).
-  * Added POST /admin/moderation/listings/{id}/suspend endpoint returning HTTP 202 ACCEPTED.
-  * Added GET /admin/moderation/listings/{id}/status polling endpoint backed by optimized ListingRepository.findStatusById query.
-- Fixed Spring AOP Transaction & Async execution bugs in NotificationEventListener:
-  * Resolved self-invocation transaction bypass by introducing TransactionTemplate for database writes.
-  * Resolved TransactionRequiredException on @Modifying queries inside async listeners.
-  * Isolated emailService.sendEmail in try-catch blocks so SMTP failures never abort push notification dispatches.
-  * Added null-safe message template formatting and default fallback strings.
-- Fixed Data Integrity & Audit Log bugs in AdminModerationServiceImpl:
-  * Replaced manual JSON string concatenation with Jackson ObjectMapper.writeValueAsString to prevent corrupted unescaped JSON.
-  * Fixed bug where listing status was mutated before building audit log oldValue (which previously recorded both oldValue and newValue as SUSPENDED).
-  * Fixed report audit log prior status evaluation.
-  * Added null check on report.getListing() to avoid NullPointerExceptions.
-- Fixed Controller Security & Validation bugs:
-  * Added safe parseAdminId helper to extract and validate UUID from Authentication principal, preventing unhandled IllegalArgumentException / 500 errors.
-  * Added @Pattern constraint to ResolveReportRequest.resolution to enforce RESOLVED or DISMISSED.
-  * Added adminId to ListingSuspendedEvent and ReportResolvedEvent payloads.
-- Fixed JPA Performance bug in ReportRepository:
-  * Removed listing.prices collection bag from @EntityGraph to eliminate MultipleBagFetchException risk.
-- Unit Test Suite:
-  * Expanded test suite (72 total tests run, 0 failures, 0 errors).
-
-Feature Workflow Narrative:
-1. Admin Suspension Request (POST /admin/moderation/listings/{id}/suspend):
-   - Admin sends POST request with suspension reason. Controller validates admin principal and body.
-   - AdminModerationServiceImpl verifies listing exists and is not already suspended, then publishes ListingSuspensionRequestedEvent and logs an AuditLog entry.
-   - Endpoint returns HTTP 202 ACCEPTED immediately.
-   - ListingSuspensionListener receives the event asynchronously, updates listing status to SUSPENDED inside listings domain transaction, and fires ListingSuspendedEvent.
-   - NotificationEventListener receives ListingSuspendedEvent AFTER_COMMIT and dispatches in-app notification and email/push to the listing owner.
-2. Status Polling (GET /admin/moderation/listings/{id}/status):
-   - Admin UI polls status endpoint to track completion of async suspension.
-3. Report Resolution (PUT /admin/moderation/reports/{id}/resolve):
-   - Admin resolves report (RESOLVED / DISMISSED). If RESOLVED and suspendListing=true, emits ListingSuspensionRequestedEvent to trigger listing suspension cascade.
+Summary of Implementation & Edge-Case Fixes:
+- Flyway Migration & Audit Envers Setup:
+  * Created V20260728233000__create_users_aud_table.sql for Envers user audit tracking.
+  * Annotated User entity with @Audited.
+- GDPR Native SQL Purge Workflow (AdminModerationServiceImpl.purgeUserGdpr):
+  * Soft-delete Safety Guard: Verifies user is soft-deleted (deletedAt != null); throws BadRequestException if active to prevent accidental PII deletion of non-archived accounts.
+  * L1 Cache Reversion Fix: Updates managed in-memory User entity fields before native SQL execution, preventing Hibernate dirty checking from re-flushing un-anonymized PII at commit.
+  * Native SQL Execution (No Exception Swallowing): Executes native SQL queries on users_aud and users tables without suppressing exceptions, guaranteeing transaction rollback on database error.
+  * Native SQL UUID Casting: Applied CAST(:userId AS uuid) for PostgreSQL driver safety.
+  * No PII Leakage in Audit Logs: Audit log entry records targetUserId without storing the user's un-anonymized email.
+- Controller Security & Resilience (AdminModerationController.parseAdminId):
+  * Dual Principal Extraction: Supports both direct UUID string principals and email lookup fallbacks via UserRepository.
+  * HTTP Status Mapping: Throws AccessDeniedException (mapped to HTTP 403 Forbidden) when context is unauthenticated.
+- Summary Price Mapping:
+  * Added extractCurrentPrice helper for null-safe and list-safe price extraction.
+- Unit & Integration Test Suite:
+  * 75 total tests run, 0 failures, 0 errors.

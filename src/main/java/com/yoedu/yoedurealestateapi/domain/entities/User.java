@@ -6,11 +6,13 @@ import com.yoedu.yoedurealestateapi.domain.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.envers.Audited;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "users")
+@Audited
 public class User extends ArchivableEntity {
 
     @Column(name = "email", nullable = false, length = 255)

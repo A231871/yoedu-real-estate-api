@@ -1,15 +1,17 @@
 package com.yoedu.yoedurealestateapi.controller;
 
 import com.yoedu.yoedurealestateapi.common.ApiResponse;
-import com.yoedu.yoedurealestateapi.common.exception.BadRequestException;
+import com.yoedu.yoedurealestateapi.domain.entities.User;
 import com.yoedu.yoedurealestateapi.domain.enums.ReportStatus;
 import com.yoedu.yoedurealestateapi.dto.moderation.AuditLogResponse;
+import com.yoedu.yoedurealestateapi.dto.moderation.GdprPurgeResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ListingAuditHistoryResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ListingStatusResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ModerationListingSummaryResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ReportResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ResolveReportRequest;
 import com.yoedu.yoedurealestateapi.dto.moderation.SuspendListingRequest;
+import com.yoedu.yoedurealestateapi.repository.UserRepository;
 import com.yoedu.yoedurealestateapi.service.AdminModerationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,8 +25,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,10 +42,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/admin/moderation")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "Admin Moderation", description = "Admin moderation queues, polling, suspension, and audit endpoints")
+@Tag(name = "Admin Moderation", description = "Admin moderation queues, polling, suspension, audit, and GDPR purge endpoints")
 public class AdminModerationController {
 
     private final AdminModerationService adminModerationService;
+    private final UserRepository userRepository;
 
     @GetMapping("/listings/pending")
     @Operation(summary = "Get pending listings", description = "Retrieves paginated listings with PENDING status for admin moderation")
@@ -106,7 +111,7 @@ public class AdminModerationController {
         description = "Emits an asynchronous ListingSuspensionRequestedEvent, returns 202 ACCEPTED immediately, " +
                       "and notifies the listing owner after commit."
     )
-    public ResponseEntity<ApiResponse<Void>> suspendListingPost(
+    public ResponseEntity<ApiResponse<Void>> suspendListing(
             @PathVariable UUID id,
             @Valid @RequestBody SuspendListingRequest request,
             Authentication authentication) {
@@ -116,26 +121,35 @@ public class AdminModerationController {
                 .body(ApiResponse.success("Yêu cầu tạm dừng bất động sản đã được ghi nhận", null));
     }
 
-    @PutMapping("/listings/{id}/suspend")
-    @Operation(summary = "Suspend a listing (PUT alias)", description = "Alias for POST /listings/{id}/suspend")
-    public ResponseEntity<ApiResponse<Void>> suspendListingPut(
-            @PathVariable UUID id,
-            @Valid @RequestBody SuspendListingRequest request,
+    @DeleteMapping("/users/{userId}/gdpr-purge")
+    @Operation(
+        summary = "Purge user PII under GDPR (Right to be Forgotten)",
+        description = "Executes Native SQL queries to scrub PII from both users and Envers users_aud tables for a soft-deleted user."
+    )
+    public ResponseEntity<ApiResponse<GdprPurgeResponse>> purgeUserGdpr(
+            @PathVariable UUID userId,
             Authentication authentication) {
-        return suspendListingPost(id, request, authentication);
+        UUID adminId = parseAdminId(authentication);
+        GdprPurgeResponse result = adminModerationService.purgeUserGdpr(userId, adminId);
+        return ResponseEntity.ok(ApiResponse.success("Thực hiện xoá dữ liệu cá nhân theo GDPR thành công", result));
     }
 
     /**
      * Safely extracts and validates the admin UUID from the Spring Security Authentication context.
+     * Supports both direct UUID string principals and email lookup fallbacks.
+     * Throws AccessDeniedException (403 Forbidden) if context is unauthenticated.
      */
     private UUID parseAdminId(Authentication authentication) {
         if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
-            throw new BadRequestException("Unauthenticated admin request context");
+            throw new AccessDeniedException("Unauthenticated admin request context");
         }
+        String name = authentication.getName();
         try {
-            return UUID.fromString(authentication.getName());
+            return UUID.fromString(name);
         } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Invalid admin principal UUID: " + authentication.getName());
+            return userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(name)
+                .map(User::getId)
+                .orElseThrow(() -> new AccessDeniedException("Admin user not found for principal: " + name));
         }
     }
 }

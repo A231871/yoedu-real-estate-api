@@ -3,6 +3,7 @@ package com.yoedu.yoedurealestateapi.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -25,6 +26,7 @@ import com.yoedu.yoedurealestateapi.domain.event.ListingSuspensionRequestedEvent
 import com.yoedu.yoedurealestateapi.domain.event.ReportResolvedEvent;
 import com.yoedu.yoedurealestateapi.domain.listings.api.ListingAuditApi;
 import com.yoedu.yoedurealestateapi.dto.moderation.AuditLogResponse;
+import com.yoedu.yoedurealestateapi.dto.moderation.GdprPurgeResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ListingAuditHistoryResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ListingStatusResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ModerationListingSummaryResponse;
@@ -36,6 +38,8 @@ import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.ReportRepository;
 import com.yoedu.yoedurealestateapi.repository.UserRepository;
 import com.yoedu.yoedurealestateapi.service.impl.AdminModerationServiceImpl;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -75,6 +79,12 @@ class AdminModerationServiceTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private EntityManager entityManager;
+
+    @Mock
+    private Query nativeQuery;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -290,5 +300,40 @@ class AdminModerationServiceTest {
         assertNotNull(response);
         assertEquals(listingId, response.listingId());
         assertEquals("PENDING", response.status());
+    }
+
+    @Test
+    void purgeUserGdpr_Success() {
+        User softDeletedUser = new User();
+        softDeletedUser.setId(UUID.randomUUID());
+        softDeletedUser.setEmail("user@example.com");
+        softDeletedUser.setDeletedAt(Instant.now());
+
+        UUID adminId = adminUser.getId();
+
+        when(userRepository.findById(softDeletedUser.getId())).thenReturn(Optional.of(softDeletedUser));
+        when(userRepository.findByIdAndDeletedAtIsNull(adminId)).thenReturn(Optional.of(adminUser));
+        when(entityManager.createNativeQuery(any())).thenReturn(nativeQuery);
+        when(nativeQuery.setParameter(any(String.class), any())).thenReturn(nativeQuery);
+        when(nativeQuery.executeUpdate()).thenReturn(1);
+
+        GdprPurgeResponse response = adminModerationService.purgeUserGdpr(softDeletedUser.getId(), adminId);
+
+        assertNotNull(response);
+        assertEquals(softDeletedUser.getId(), response.userId());
+        assertTrue(response.anonymizedEmail().contains("gdpr.anonymized"));
+        verify(auditLogRepository).save(any(AuditLog.class));
+    }
+
+    @Test
+    void purgeUserGdpr_NotSoftDeleted_ThrowsBadRequestException() {
+        User activeUser = new User();
+        activeUser.setId(UUID.randomUUID());
+        activeUser.setDeletedAt(null); // Active user!
+
+        when(userRepository.findById(activeUser.getId())).thenReturn(Optional.of(activeUser));
+
+        assertThrows(BadRequestException.class,
+            () -> adminModerationService.purgeUserGdpr(activeUser.getId(), adminUser.getId()));
     }
 }
