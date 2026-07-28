@@ -59,6 +59,7 @@ public class SecurityConfig {
                                 "/ws/**"   // WebSocket SockJS handshake — JWT auth via STOMP interceptor
                         ).permitAll()
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers("/admin/**", "/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
