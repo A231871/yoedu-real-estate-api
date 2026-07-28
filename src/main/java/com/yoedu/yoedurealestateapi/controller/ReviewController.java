@@ -41,7 +41,7 @@ public class ReviewController {
    * Creates a review for a listing. The requesting user must have a {@code COMPLETED}
    * viewing schedule for the specified listing to prevent fake reviews.
    */
-  @PostMapping("/api/reviews")
+  @PostMapping("/reviews")
   @Operation(
       summary = "Create a verified review",
       description = "Submit a review for a listing. "
@@ -60,7 +60,7 @@ public class ReviewController {
    * Returns paginated reviews. Exactly one of {@code listingId} or {@code hostId}
    * must be provided as a query parameter.
    */
-  @GetMapping("/api/reviews")
+  @GetMapping("/reviews")
   @Operation(
       summary = "List reviews",
       description = "Retrieve paginated reviews filtered by listingId or hostId. "
@@ -90,7 +90,7 @@ public class ReviewController {
    * Dedicated endpoint per the spec — semantically equivalent to
    * GET /api/reviews?listingId={listingId}.
    */
-  @GetMapping("/api/reviews/listing/{listingId}/feedback")
+  @GetMapping("/reviews/listing/{listingId}/feedback")
   @Operation(
       summary = "Get paginated feedback for a listing",
       description = "Returns all visible, non-hidden reviews for the given listing, paginated.")
@@ -110,7 +110,7 @@ public class ReviewController {
    * Allows the host of the reviewed listing to post a reply.
    * Access is restricted via {@code @reviewSecurity.isListingHostForReview(#reviewId)}.
    */
-  @PostMapping("/api/reviews/{reviewId}/reply")
+  @PostMapping("/reviews/{reviewId}/reply")
   @PreAuthorize("@reviewSecurity.isListingHostForReview(#reviewId)")
   @Operation(
       summary = "Host replies to a review",
@@ -134,7 +134,7 @@ public class ReviewController {
    * Any authenticated user can submit a report for a listing.
    * Dev 2 publishes a {@code ListingReportedEvent}; Dev 3's listener persists the record.
    */
-  @PostMapping("/api/reports")
+  @PostMapping("/reports")
   @Operation(
       summary = "Report a listing",
       description = "Submit a fraud / inaccuracy / inappropriate-content report for a listing. "
