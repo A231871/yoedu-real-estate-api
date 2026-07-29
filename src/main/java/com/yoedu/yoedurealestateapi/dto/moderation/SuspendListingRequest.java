@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * Request body for PUT /admin/moderation/listings/{id}/suspend.
+ * Request body for POST /admin/moderation/listings/{id}/suspend.
  *
  * @param reason  Mandatory reason for suspension (max 500 chars), recorded in AuditLog.
  */

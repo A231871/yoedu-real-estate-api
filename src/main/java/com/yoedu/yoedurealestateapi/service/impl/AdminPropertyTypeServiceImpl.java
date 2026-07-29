@@ -6,6 +6,7 @@ import com.yoedu.yoedurealestateapi.domain.entities.PropertyType;
 import com.yoedu.yoedurealestateapi.domain.event.PropertyTypeUpdatedEvent;
 import com.yoedu.yoedurealestateapi.dto.property_type.PropertyTypeResponse;
 import com.yoedu.yoedurealestateapi.dto.property_type.UpdatePropertyTypeRequest;
+import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.PropertyTypeRepository;
 import com.yoedu.yoedurealestateapi.service.AdminPropertyTypeService;
 import java.util.List;
@@ -13,7 +14,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminPropertyTypeServiceImpl implements AdminPropertyTypeService {
 
     private final PropertyTypeRepository propertyTypeRepository;
+    private final ListingRepository listingRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     private PropertyTypeResponse toPropertyTypeResponse(PropertyType propertyType) {
@@ -106,14 +107,12 @@ public class AdminPropertyTypeServiceImpl implements AdminPropertyTypeService {
     @Transactional
     @CacheEvict(value = "propertyTypes", allEntries = true)
     public void deletePropertyType(Integer id) {
-        if (!propertyTypeRepository.existsById(id)) {
-            throw new NotFoundException("Loại bất động sản không tồn tại");
-        }
-        try {
-            propertyTypeRepository.deleteById(id);
-            propertyTypeRepository.flush();
-        } catch (DataIntegrityViolationException ex) {
+        PropertyType propertyType = propertyTypeRepository.findById(id)
+            .orElseThrow(() -> new NotFoundException("Loại bất động sản không tồn tại"));
+        if (listingRepository.existsByPropertyTypeIdAndDeletedAtIsNull(id)) {
             throw new ConflictException("Không thể xóa loại bất động sản đang được sử dụng bởi các bài đăng");
         }
+        propertyType.setIsActive(false);
+        propertyTypeRepository.save(propertyType);
     }
 }

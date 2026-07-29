@@ -34,9 +34,11 @@ public class AuditLog extends BaseEntity {
     @Column(name = "entity_id", nullable = false, length = 255)
     private String entityId;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "old_value", columnDefinition = "jsonb")
     private String oldValue;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "new_value", columnDefinition = "jsonb")
     private String newValue;
 

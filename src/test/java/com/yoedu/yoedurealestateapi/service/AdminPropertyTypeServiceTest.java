@@ -15,6 +15,7 @@ import com.yoedu.yoedurealestateapi.domain.entities.PropertyType;
 import com.yoedu.yoedurealestateapi.domain.event.PropertyTypeUpdatedEvent;
 import com.yoedu.yoedurealestateapi.dto.property_type.PropertyTypeResponse;
 import com.yoedu.yoedurealestateapi.dto.property_type.UpdatePropertyTypeRequest;
+import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.PropertyTypeRepository;
 import com.yoedu.yoedurealestateapi.service.impl.AdminPropertyTypeServiceImpl;
 import java.util.List;
@@ -34,6 +35,9 @@ class AdminPropertyTypeServiceTest {
 
     @Mock
     private PropertyTypeRepository propertyTypeRepository;
+
+    @Mock
+    private ListingRepository listingRepository;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -153,24 +157,25 @@ class AdminPropertyTypeServiceTest {
 
     @Test
     void deletePropertyType_Success() {
-        when(propertyTypeRepository.existsById(1)).thenReturn(true);
+        when(propertyTypeRepository.findById(1)).thenReturn(Optional.of(propertyType));
+        when(listingRepository.existsByPropertyTypeIdAndDeletedAtIsNull(1)).thenReturn(false);
 
         adminPropertyTypeService.deletePropertyType(1);
 
-        verify(propertyTypeRepository).deleteById(1);
+        verify(propertyTypeRepository).save(propertyType);
     }
 
     @Test
     void deletePropertyType_NotFound_ThrowsException() {
-        when(propertyTypeRepository.existsById(99)).thenReturn(false);
+        when(propertyTypeRepository.findById(99)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> adminPropertyTypeService.deletePropertyType(99));
     }
 
     @Test
     void deletePropertyType_Conflict_ThrowsException() {
-        when(propertyTypeRepository.existsById(1)).thenReturn(true);
-        doThrow(new DataIntegrityViolationException("FK constraint")).when(propertyTypeRepository).deleteById(1);
+        when(propertyTypeRepository.findById(1)).thenReturn(Optional.of(propertyType));
+        when(listingRepository.existsByPropertyTypeIdAndDeletedAtIsNull(1)).thenReturn(true);
 
         assertThrows(ConflictException.class, () -> adminPropertyTypeService.deletePropertyType(1));
     }

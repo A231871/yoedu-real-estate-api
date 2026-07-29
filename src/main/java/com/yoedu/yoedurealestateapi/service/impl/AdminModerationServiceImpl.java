@@ -51,7 +51,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AdminModerationServiceImpl implements AdminModerationService {
 
     private final ListingRepository listingRepository;
@@ -60,8 +59,24 @@ public class AdminModerationServiceImpl implements AdminModerationService {
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final EntityManager entityManager;
+    private final ObjectMapper objectMapper;
 
-    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    public AdminModerationServiceImpl(
+            ListingRepository listingRepository,
+            ReportRepository reportRepository,
+            AuditLogRepository auditLogRepository,
+            UserRepository userRepository,
+            ApplicationEventPublisher eventPublisher,
+            EntityManager entityManager,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) ObjectMapper objectMapper) {
+        this.listingRepository = listingRepository;
+        this.reportRepository = reportRepository;
+        this.auditLogRepository = auditLogRepository;
+        this.userRepository = userRepository;
+        this.eventPublisher = eventPublisher;
+        this.entityManager = entityManager;
+        this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper().registerModule(new JavaTimeModule());
+    }
 
     // -------------------------------------------------------------------------
     // Subtask 2 — Read endpoints
@@ -156,8 +171,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
             throw new BadRequestException("Report is already in a terminal state: " + report.getStatus());
         }
 
-        User admin = userRepository.findByIdAndDeletedAtIsNull(adminId)
-            .orElseThrow(() -> new NotFoundException("Admin user not found: " + adminId));
+        User admin = requireAdmin(adminId);
 
         String previousReportStatus = report.getStatus() != null ? report.getStatus().name() : "UNKNOWN";
 
@@ -205,8 +219,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
             throw new BadRequestException("Listing is already SUSPENDED");
         }
 
-        User admin = userRepository.findByIdAndDeletedAtIsNull(adminId)
-            .orElseThrow(() -> new NotFoundException("Admin user not found: " + adminId));
+        User admin = requireAdmin(adminId);
 
         applySuspension(listing, adminId, request.reason(), admin);
     }
@@ -225,10 +238,10 @@ public class AdminModerationServiceImpl implements AdminModerationService {
 
     @Override
     @Transactional
-    public GdprPurgeResponse purgeUserGdpr(UUID userId, UUID adminId) {
-        Optional<User> userOpt = userRepository.findById(userId);
+    public GdprPurgeResponse purgeUserGdpr(UUID targetUserId, UUID adminId) {
+        Optional<User> userOpt = userRepository.findById(targetUserId);
         if (userOpt.isEmpty()) {
-            throw new NotFoundException("User not found: " + userId);
+            throw new NotFoundException("User not found: " + targetUserId);
         }
 
         User user = userOpt.get();
@@ -237,10 +250,9 @@ public class AdminModerationServiceImpl implements AdminModerationService {
             throw new BadRequestException("User must be soft-deleted (deletedAt != null) before GDPR purge can be executed");
         }
 
-        User admin = userRepository.findByIdAndDeletedAtIsNull(adminId)
-            .orElseThrow(() -> new NotFoundException("Admin user not found: " + adminId));
+        User admin = requireAdmin(adminId);
 
-        String anonymizedEmail = "purged-" + userId + "@gdpr.anonymized";
+        String anonymizedEmail = "purged-" + targetUserId + "@gdpr.anonymized";
         Instant purgedAt = Instant.now();
 
         // Update managed entity in memory first to prevent Hibernate L1 cache from re-flushing old PII
@@ -253,63 +265,46 @@ public class AdminModerationServiceImpl implements AdminModerationService {
         user.setProviderId(null);
         userRepository.save(user);
 
-        // Native SQL Purge 1: Scrub PII from users_aud Envers audit history
-        int audRecordsScrubbed = entityManager.createNativeQuery("""
-            UPDATE users_aud
-            SET email = :anonymizedEmail,
-                full_name = 'GDPR Anonymized User',
-                phone = NULL,
-                avatar_url = NULL,
-                password_hash = NULL,
-                provider_id = NULL,
-                bio = NULL
-            WHERE id = CAST(:userId AS uuid)
-            """)
-            .setParameter("anonymizedEmail", anonymizedEmail)
-            .setParameter("userId", userId)
-            .executeUpdate();
-
-        // Native SQL Purge 2: Touch revinfo revision metadata
+        // Native SQL Purge 1: Scrub users_aud (Envers audit history)
+        int audRowsScrubbed = 0;
         try {
-            entityManager.createNativeQuery("""
-                UPDATE revinfo
-                SET revtstmp = revtstmp
-                WHERE rev IN (SELECT rev FROM users_aud WHERE id = CAST(:userId AS uuid))
+            audRowsScrubbed = entityManager.createNativeQuery("""
+                UPDATE users_aud
+                SET email = :anonymizedEmail,
+                    full_name = 'GDPR Anonymized User',
+                    phone = NULL,
+                    avatar_url = NULL,
+                    bio = NULL,
+                    password_hash = NULL
+                WHERE id = CAST(:userId AS uuid)
                 """)
-                .setParameter("userId", userId)
+                .setParameter("anonymizedEmail", anonymizedEmail)
+                .setParameter("userId", targetUserId.toString())
                 .executeUpdate();
+
+            log.info("Scrubbed {} audit rows in users_aud for user {}", audRowsScrubbed, targetUserId);
         } catch (Exception e) {
-            log.debug("REVINFO update execution note: {}", e.getMessage());
+            log.error("Failed to scrub users_aud for user {}", targetUserId, e);
+            throw new RuntimeException("GDPR purge failed during users_aud scrubbing", e);
         }
 
-        // Native SQL Purge 3: Anonymize live users table PII
-        entityManager.createNativeQuery("""
-            UPDATE users
-            SET email = :anonymizedEmail,
-                full_name = 'GDPR Anonymized User',
-                phone = NULL,
-                avatar_url = NULL,
-                password_hash = NULL,
-                provider_id = NULL,
-                bio = NULL
-            WHERE id = CAST(:userId AS uuid)
-            """)
-            .setParameter("anonymizedEmail", anonymizedEmail)
-            .setParameter("userId", userId)
-            .executeUpdate();
+        persistAuditLog(admin, "GDPR_PURGE_USER", "USER", targetUserId.toString(),
+            safeJson(Map.of("action", "ANONYMIZE_PII", "targetUserId", targetUserId.toString())),
+            safeJson(Map.of("anonymizedEmail", anonymizedEmail, "purgedAt", purgedAt.toString(), "audRowsScrubbed", audRowsScrubbed)));
 
-        persistAuditLog(admin, "GDPR_PURGE_USER", "USER", userId.toString(),
-            safeJson(Map.of("action", "ANONYMIZE_PII", "targetUserId", userId.toString())),
-            safeJson(Map.of("anonymizedEmail", anonymizedEmail, "purgedAt", purgedAt.toString(), "audRecordsScrubbed", audRecordsScrubbed)));
+        log.info("GDPR Purge completed for user {} by admin {}. Scrubbed {} audit records.", targetUserId, adminId, audRowsScrubbed);
 
-        log.info("GDPR Purge completed for user {} by admin {}. Scrubbed {} audit records.", userId, adminId, audRecordsScrubbed);
-
-        return new GdprPurgeResponse(userId, purgedAt, anonymizedEmail, audRecordsScrubbed);
+        return new GdprPurgeResponse(targetUserId, purgedAt, anonymizedEmail, audRowsScrubbed);
     }
 
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    private User requireAdmin(UUID adminId) {
+        return userRepository.findByIdAndDeletedAtIsNull(adminId)
+            .orElseThrow(() -> new NotFoundException("Admin user not found: " + adminId));
+    }
 
     /**
      * Directly sets the listing status to SUSPENDED and publishes {@link ListingSuspendedEvent}
@@ -358,7 +353,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
 
     private Specification<AuditLog> buildAuditLogSpec(UUID actorId, String entityType, String entityId) {
         return (root, query, cb) -> {
-            if (query != null && Long.class != query.getResultType()) {
+            if (Long.class != query.getResultType()) {
                 root.fetch("actor", JoinType.LEFT);
             }
 

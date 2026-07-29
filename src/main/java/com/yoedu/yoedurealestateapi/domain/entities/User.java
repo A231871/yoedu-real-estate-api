@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
 
 @Getter
 @Setter
@@ -18,6 +19,7 @@ public class User extends ArchivableEntity {
     @Column(name = "email", nullable = false, length = 255)
     private String email;
 
+    @NotAudited
     @Column(name = "password_hash", length = 255)
     private String passwordHash;
 

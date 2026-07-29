@@ -27,4 +27,7 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
     /** Fast projection query for high-frequency status polling endpoint. */
     @Query("SELECT l.status FROM Listing l WHERE l.id = :id AND l.deletedAt IS NULL")
     Optional<ListingStatus> findStatusById(@Param("id") UUID id);
+
+    /** Used by AdminPropertyTypeServiceImpl to check before soft-deleting a property type. */
+    boolean existsByPropertyTypeIdAndDeletedAtIsNull(Integer propertyTypeId);
 }
