@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
@@ -47,7 +47,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
   public static final String BAN_KEY_PREFIX = "banned:user:";
 
   private final JwtService jwtService;
-  private final RedisTemplate<String, String> redisTemplate;
+  private final StringRedisTemplate redisStringTemplate;
 
   @Override
   public boolean beforeHandshake(
@@ -105,7 +105,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
     // ── Step 3: Check Redis ban blacklist ──────────────────────────────────
     // Key set by the admin/ban service when a user is suspended.
     // Even if the JWT is still valid, a banned user cannot reconnect.
-    Boolean isBanned = redisTemplate.hasKey(BAN_KEY_PREFIX + userId);
+    Boolean isBanned = redisStringTemplate.hasKey(BAN_KEY_PREFIX + userId);
     if (Boolean.TRUE.equals(isBanned)) {
       log.warn("WS handshake rejected: user {} is banned", userId);
       response.setStatusCode(HttpStatus.FORBIDDEN);

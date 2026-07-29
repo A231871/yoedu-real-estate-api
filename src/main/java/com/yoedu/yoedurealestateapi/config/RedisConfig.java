@@ -7,15 +7,16 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
+import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
  * Redis configuration for:
- * 1. RedisTemplate<String, String> — used by WebSocketHandshakeInterceptor
- *    to check the ban blacklist (key: "banned:user:{userId}").
- * 2. RedisMessageListenerContainer — subscribes UserBannedEventListener
+ * 1. RedisMessageListenerContainer — subscribes UserBannedEventListener
  *    to the "user:banned" Pub/Sub channel for real-time session severing.
+ *
+ * The StringRedisTemplate used for the ban blacklist (key: "banned:user:{userId}")
+ * is Spring Boot's auto-configured bean — no custom definition needed here.
  *
  * Uses Lettuce as the connection driver (Spring Boot auto-configured).
  * Configuration is driven by spring.data.redis.* properties in application.yaml.
@@ -23,25 +24,18 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Configuration
 public class RedisConfig {
 
-  /**
-   * String-keyed, string-valued RedisTemplate.
-   * Used for the ban blacklist and any simple key-value lookups.
-   */
   @Bean
-  public RedisTemplate<String, String> redisTemplate(RedisConnectionFactory connectionFactory) {
-    RedisTemplate<String, String> template = new RedisTemplate<>();
-    template.setConnectionFactory(connectionFactory);
-    template.setKeySerializer(new StringRedisSerializer());
-    template.setValueSerializer(new StringRedisSerializer());
-    template.setHashKeySerializer(new StringRedisSerializer());
-    template.setHashValueSerializer(new StringRedisSerializer());
-    template.afterPropertiesSet();
-    return template;
+  public RedisTemplate<String, Object> redisObjectTemplate(RedisConnectionFactory connectionFactory) {
+      RedisTemplate<String, Object> template = new RedisTemplate<>();
+      template.setConnectionFactory(connectionFactory);
+      template.setKeySerializer(new StringRedisSerializer());
+      template.setValueSerializer(new JacksonJsonRedisSerializer<>(Object.class));
+      return template;
   }
 
   @Bean
   public org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor redisListenerExecutor() {
-    org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor executor = 
+    org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor executor =
         new org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor();
     executor.setCorePoolSize(2);
     executor.setMaxPoolSize(10);

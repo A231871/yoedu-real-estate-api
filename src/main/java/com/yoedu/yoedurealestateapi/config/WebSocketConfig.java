@@ -6,6 +6,7 @@ import com.yoedu.yoedurealestateapi.security.WebSocketHandshakeInterceptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -42,7 +43,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   private final WebSocketHandshakeInterceptor webSocketHandshakeInterceptor;
   private final WebSocketSessionRegistry sessionRegistry;
   private final AppWsBrokerProperties brokerProperties;
-  private final org.springframework.data.redis.core.RedisTemplate<String, String> redisTemplate;
+  private final StringRedisTemplate redisStringTemplate;
   private final ThreadPoolTaskScheduler brokerHeartbeatScheduler;
 
   @Override
@@ -62,7 +63,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
           .setUserDestinationBroadcast("/topic/unresolved-user-destination")
           .setUserRegistryBroadcast("/topic/simp-user-registry");
 
-      log.info("WebSocket: using STOMP broker relay at {}:{}", 
+      log.info("WebSocket: using STOMP broker relay at {}:{}",
           brokerProperties.broker().relayHost(), brokerProperties.broker().relayPort());
     } else {
       // ── Development: in-memory simple broker ──────────────────────────────
@@ -78,8 +79,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
   @Override
   public void registerStompEndpoints(StompEndpointRegistry registry) {
-    String[] allowed = brokerProperties.allowedOrigins() != null 
-        ? brokerProperties.allowedOrigins().toArray(String[]::new) 
+    String[] allowed = brokerProperties.allowedOrigins() != null
+        ? brokerProperties.allowedOrigins().toArray(String[]::new)
         : new String[]{"http://localhost:*", "http://127.0.0.1:*"};
 
     registry.addEndpoint("/ws")
@@ -117,7 +118,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             String username = (String) session.getAttributes().get(USERNAME_ATTRIBUTE);
             if (username != null) {
               sessionRegistry.register(username, session);
-              Boolean isBanned = redisTemplate.hasKey(BAN_KEY_PREFIX + username);
+              Boolean isBanned = redisStringTemplate.hasKey(BAN_KEY_PREFIX + username);
               if (Boolean.TRUE.equals(isBanned)) {
                 sessionRegistry.unregister(username, session);
                 session.close(new CloseStatus(4403, "Account suspended"));
