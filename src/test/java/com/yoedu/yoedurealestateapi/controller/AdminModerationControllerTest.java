@@ -23,7 +23,6 @@ import com.yoedu.yoedurealestateapi.dto.moderation.ModerationListingSummaryRespo
 import com.yoedu.yoedurealestateapi.dto.moderation.ReportResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ResolveReportRequest;
 import com.yoedu.yoedurealestateapi.dto.moderation.SuspendListingRequest;
-import com.yoedu.yoedurealestateapi.repository.UserRepository;
 import com.yoedu.yoedurealestateapi.service.AdminModerationService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -46,15 +45,13 @@ class AdminModerationControllerTest {
 
     private MockMvc mockMvc;
     private AdminModerationService adminModerationService;
-    private UserRepository userRepository;
     private UUID mockAdminId;
 
     @BeforeEach
     void setUp() {
         mockAdminId = UUID.randomUUID();
         adminModerationService = mock(AdminModerationService.class);
-        userRepository = mock(UserRepository.class);
-        AdminModerationController controller = new AdminModerationController(adminModerationService, userRepository);
+        AdminModerationController controller = new AdminModerationController(adminModerationService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .setControllerAdvice(new GlobalExceptionHandler())
@@ -108,7 +105,7 @@ class AdminModerationControllerTest {
 
         when(adminModerationService.getListingAuditHistory(listingId)).thenReturn(List.of(dto));
 
-        mockMvc.perform(get("/admin/moderation/listings/{id}/audit-history", listingId))
+        mockMvc.perform(get("/admin/moderation/listings/{id}/audit", listingId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data[0].title", is("Nhà mặt tiền")))

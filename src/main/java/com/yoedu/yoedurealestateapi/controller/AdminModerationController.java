@@ -1,7 +1,6 @@
 package com.yoedu.yoedurealestateapi.controller;
 
 import com.yoedu.yoedurealestateapi.common.ApiResponse;
-import com.yoedu.yoedurealestateapi.domain.entities.User;
 import com.yoedu.yoedurealestateapi.domain.enums.ReportStatus;
 import com.yoedu.yoedurealestateapi.dto.moderation.AuditLogResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.GdprPurgeResponse;
@@ -11,7 +10,6 @@ import com.yoedu.yoedurealestateapi.dto.moderation.ModerationListingSummaryRespo
 import com.yoedu.yoedurealestateapi.dto.moderation.ReportResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ResolveReportRequest;
 import com.yoedu.yoedurealestateapi.dto.moderation.SuspendListingRequest;
-import com.yoedu.yoedurealestateapi.repository.UserRepository;
 import com.yoedu.yoedurealestateapi.service.AdminModerationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,7 +44,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminModerationController {
 
     private final AdminModerationService adminModerationService;
-    private final UserRepository userRepository;
 
     @GetMapping("/listings/pending")
     @Operation(summary = "Get pending listings", description = "Retrieves paginated listings with PENDING status for admin moderation")
@@ -65,8 +62,11 @@ public class AdminModerationController {
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách báo cáo vi phạm thành công", result));
     }
 
-    @GetMapping("/listings/{id}/audit-history")
-    @Operation(summary = "Get listing audit history", description = "Retrieves Envers revision history for a specific listing")
+    @GetMapping({"/listings/{id}/audit", "/listings/{id}/audit-history"})
+    @Operation(
+        summary = "Get listing audit history",
+        description = "Retrieves Envers revision history for a specific listing. Accessible via both /audit and /audit-history paths."
+    )
     public ResponseEntity<ApiResponse<List<ListingAuditHistoryResponse>>> getListingAuditHistory(@PathVariable UUID id) {
         List<ListingAuditHistoryResponse> result = adminModerationService.getListingAuditHistory(id);
         return ResponseEntity.ok(ApiResponse.success("Lấy lịch sử chỉnh sửa bất động sản thành công", result));
@@ -84,7 +84,7 @@ public class AdminModerationController {
     }
 
     @GetMapping("/listings/{id}/status")
-    @Operation(summary = "Get listing status for polling", description = "Lightweight status endpoint for frontend polling following async suspension requests")
+    @Operation(summary = "Get listing status for polling", description = "Lightweight status endpoint for frontend polling following suspension requests")
     public ResponseEntity<ApiResponse<ListingStatusResponse>> getListingStatus(@PathVariable UUID id) {
         ListingStatusResponse result = adminModerationService.getListingStatus(id);
         return ResponseEntity.ok(ApiResponse.success("Lấy trạng thái bất động sản thành công", result));
@@ -94,7 +94,8 @@ public class AdminModerationController {
     @Operation(
         summary = "Resolve a user report",
         description = "Marks a report as RESOLVED or DISMISSED. If resolution=RESOLVED and suspendListing=true, " +
-                      "emits a ListingSuspensionRequestedEvent for async suspension and notifies the listing owner."
+                      "directly sets the listing status to SUSPENDED within the same transaction and publishes " +
+                      "a ListingSuspendedEvent after commit to notify the listing owner."
     )
     public ResponseEntity<ApiResponse<ReportResponse>> resolveReport(
             @PathVariable UUID id,
@@ -107,9 +108,9 @@ public class AdminModerationController {
 
     @PostMapping("/listings/{id}/suspend")
     @Operation(
-        summary = "Suspend a listing (Async Command)",
-        description = "Emits an asynchronous ListingSuspensionRequestedEvent, returns 202 ACCEPTED immediately, " +
-                      "and notifies the listing owner after commit."
+        summary = "Suspend a listing",
+        description = "Directly suspends the listing within the current transaction, publishes a ListingSuspendedEvent " +
+                      "after commit to notify the listing owner, and returns 202 ACCEPTED."
     )
     public ResponseEntity<ApiResponse<Void>> suspendListing(
             @PathVariable UUID id,
@@ -135,21 +136,18 @@ public class AdminModerationController {
     }
 
     /**
-     * Safely extracts and validates the admin UUID from the Spring Security Authentication context.
-     * Supports both direct UUID string principals and email lookup fallbacks.
-     * Throws AccessDeniedException (403 Forbidden) if context is unauthenticated.
+     * Extracts the admin UUID from the Spring Security Authentication principal.
+     * Assumes the JWT filter stores the user's UUID directly as the principal name.
+     * Throws AccessDeniedException (HTTP 403) if authentication is missing or invalid.
      */
     private UUID parseAdminId(Authentication authentication) {
         if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
             throw new AccessDeniedException("Unauthenticated admin request context");
         }
-        String name = authentication.getName();
         try {
-            return UUID.fromString(name);
+            return UUID.fromString(authentication.getName());
         } catch (IllegalArgumentException e) {
-            return userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(name)
-                .map(User::getId)
-                .orElseThrow(() -> new AccessDeniedException("Admin user not found for principal: " + name));
+            throw new AccessDeniedException("Invalid admin principal identifier: " + authentication.getName());
         }
     }
 }

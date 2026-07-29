@@ -11,9 +11,8 @@ import com.yoedu.yoedurealestateapi.domain.entities.Report;
 import com.yoedu.yoedurealestateapi.domain.entities.User;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingStatus;
 import com.yoedu.yoedurealestateapi.domain.enums.ReportStatus;
-import com.yoedu.yoedurealestateapi.domain.event.ListingSuspensionRequestedEvent;
+import com.yoedu.yoedurealestateapi.domain.event.ListingSuspendedEvent;
 import com.yoedu.yoedurealestateapi.domain.event.ReportResolvedEvent;
-import com.yoedu.yoedurealestateapi.domain.listings.api.ListingAuditApi;
 import com.yoedu.yoedurealestateapi.dto.moderation.AuditLogResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.GdprPurgeResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ListingAuditHistoryResponse;
@@ -38,6 +37,11 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.envers.AuditReader;
+import org.hibernate.envers.AuditReaderFactory;
+import org.hibernate.envers.DefaultRevisionEntity;
+import org.hibernate.envers.RevisionType;
+import org.hibernate.envers.query.AuditEntity;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -53,7 +57,6 @@ public class AdminModerationServiceImpl implements AdminModerationService {
     private final ListingRepository listingRepository;
     private final ReportRepository reportRepository;
     private final AuditLogRepository auditLogRepository;
-    private final ListingAuditApi listingAuditApi;
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final EntityManager entityManager;
@@ -85,11 +88,45 @@ public class AdminModerationServiceImpl implements AdminModerationService {
 
     @Override
     @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
     public List<ListingAuditHistoryResponse> getListingAuditHistory(UUID listingId) {
         if (!listingRepository.existsById(listingId)) {
             throw new NotFoundException("Listing not found: " + listingId);
         }
-        return listingAuditApi.getListingAuditHistory(listingId);
+
+        AuditReader auditReader = AuditReaderFactory.get(entityManager);
+
+        List<Object[]> results = auditReader.createQuery()
+            .forRevisionsOfEntity(Listing.class, false, true)
+            .add(AuditEntity.id().eq(listingId))
+            .addOrder(AuditEntity.revisionNumber().asc())
+            .getResultList();
+
+        List<ListingAuditHistoryResponse> history = new ArrayList<>();
+        for (Object[] row : results) {
+            Listing listingSnapshot = (Listing) row[0];
+            DefaultRevisionEntity revEntity = (DefaultRevisionEntity) row[1];
+            RevisionType revType = (RevisionType) row[2];
+
+            Instant revisedAt = Instant.ofEpochMilli(revEntity.getTimestamp());
+
+            UUID snapshotId = listingSnapshot != null ? listingSnapshot.getId() : listingId;
+            String title = listingSnapshot != null ? listingSnapshot.getTitle() : null;
+            String status = (listingSnapshot != null && listingSnapshot.getStatus() != null)
+                ? listingSnapshot.getStatus().name()
+                : null;
+
+            history.add(new ListingAuditHistoryResponse(
+                revEntity.getId(),
+                revisedAt,
+                revType.name(),
+                snapshotId,
+                title,
+                status
+            ));
+        }
+
+        return history;
     }
 
     @Override
@@ -101,7 +138,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
     }
 
     // -------------------------------------------------------------------------
-    // Subtask 4 — API-45: Cascading Suspension Workflow & Polling
+    // Subtask 4 — API-45: Suspension Workflow & Polling
     // -------------------------------------------------------------------------
 
     @Override
@@ -137,18 +174,8 @@ public class AdminModerationServiceImpl implements AdminModerationService {
             if (listing == null) {
                 throw new BadRequestException("Report " + reportId + " is not linked to an active listing");
             }
-
-            String previousListingStatus = listing.getStatus() != null ? listing.getStatus().name() : "UNKNOWN";
-
-            eventPublisher.publishEvent(ListingSuspensionRequestedEvent.builder()
-                .listingId(listing.getId())
-                .adminId(adminId)
-                .reason("Report " + reportId + " resolved by admin: " + (request.adminNote() != null ? request.adminNote() : ""))
-                .build());
-
-            persistAuditLog(admin, "SUSPEND_LISTING", "LISTING", listing.getId().toString(),
-                safeJson(Map.of("previousStatus", previousListingStatus)),
-                safeJson(Map.of("status", "SUSPENDED", "reason", "Report resolved: " + reportId)));
+            applySuspension(listing, adminId, "Report " + reportId + " resolved by admin: "
+                + (request.adminNote() != null ? request.adminNote() : ""), admin);
         }
 
         persistAuditLog(admin, "RESOLVE_REPORT", "REPORT", reportId.toString(),
@@ -181,17 +208,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
         User admin = userRepository.findByIdAndDeletedAtIsNull(adminId)
             .orElseThrow(() -> new NotFoundException("Admin user not found: " + adminId));
 
-        String previousStatus = listing.getStatus() != null ? listing.getStatus().name() : "UNKNOWN";
-
-        eventPublisher.publishEvent(ListingSuspensionRequestedEvent.builder()
-            .listingId(listingId)
-            .adminId(adminId)
-            .reason(request.reason())
-            .build());
-
-        persistAuditLog(admin, "SUSPEND_LISTING", "LISTING", listingId.toString(),
-            safeJson(Map.of("previousStatus", previousStatus)),
-            safeJson(Map.of("status", "SUSPENDED", "reason", request.reason())));
+        applySuspension(listing, adminId, request.reason(), admin);
     }
 
     @Override
@@ -206,18 +223,9 @@ public class AdminModerationServiceImpl implements AdminModerationService {
     // Subtask 5 — API-46: GDPR Native SQL Purge Task
     // -------------------------------------------------------------------------
 
-    /**
-     * Enforces GDPR compliance ("Right to be Forgotten") by permanently purging/anonymizing
-     * Personally Identifiable Information (PII) for soft-deleted users.
-     * <p>
-     * Native SQL queries update live {@code users}, Envers {@code users_aud}, and touch {@code revinfo}
-     * revision metadata. Exceptions are not swallowed, guaranteeing atomic transaction rollback if database updates fail.
-     * </p>
-     */
     @Override
     @Transactional
     public GdprPurgeResponse purgeUserGdpr(UUID userId, UUID adminId) {
-        // 1. Verify user exists
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
             throw new NotFoundException("User not found: " + userId);
@@ -225,7 +233,6 @@ public class AdminModerationServiceImpl implements AdminModerationService {
 
         User user = userOpt.get();
 
-        // 2. Safety Guard: User MUST be soft-deleted before GDPR purge can proceed
         if (user.getDeletedAt() == null) {
             throw new BadRequestException("User must be soft-deleted (deletedAt != null) before GDPR purge can be executed");
         }
@@ -236,7 +243,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
         String anonymizedEmail = "purged-" + userId + "@gdpr.anonymized";
         Instant purgedAt = Instant.now();
 
-        // 3. Update managed in-memory entity fields FIRST to prevent Hibernate L1 dirty check from re-flushing PII
+        // Update managed entity in memory first to prevent Hibernate L1 cache from re-flushing old PII
         user.setEmail(anonymizedEmail);
         user.setFullName("GDPR Anonymized User");
         user.setPhone(null);
@@ -246,7 +253,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
         user.setProviderId(null);
         userRepository.save(user);
 
-        // 4. Native SQL Purge 1: Scrub PII from users_aud Envers audit history
+        // Native SQL Purge 1: Scrub PII from users_aud Envers audit history
         int audRecordsScrubbed = entityManager.createNativeQuery("""
             UPDATE users_aud
             SET email = :anonymizedEmail,
@@ -262,7 +269,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
             .setParameter("userId", userId)
             .executeUpdate();
 
-        // 5. Native SQL Purge 2: Touch revinfo revision metadata associated with purged user audit records
+        // Native SQL Purge 2: Touch revinfo revision metadata
         try {
             entityManager.createNativeQuery("""
                 UPDATE revinfo
@@ -275,7 +282,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
             log.debug("REVINFO update execution note: {}", e.getMessage());
         }
 
-        // 6. Native SQL Purge 3: Anonymize live users table PII
+        // Native SQL Purge 3: Anonymize live users table PII
         entityManager.createNativeQuery("""
             UPDATE users
             SET email = :anonymizedEmail,
@@ -291,7 +298,6 @@ public class AdminModerationServiceImpl implements AdminModerationService {
             .setParameter("userId", userId)
             .executeUpdate();
 
-        // 7. Persist system audit log WITHOUT leaking real PII email into old_value
         persistAuditLog(admin, "GDPR_PURGE_USER", "USER", userId.toString(),
             safeJson(Map.of("action", "ANONYMIZE_PII", "targetUserId", userId.toString())),
             safeJson(Map.of("anonymizedEmail", anonymizedEmail, "purgedAt", purgedAt.toString(), "audRecordsScrubbed", audRecordsScrubbed)));
@@ -305,16 +311,40 @@ public class AdminModerationServiceImpl implements AdminModerationService {
     // Private helpers
     // -------------------------------------------------------------------------
 
+    /**
+     * Directly sets the listing status to SUSPENDED and publishes {@link ListingSuspendedEvent}
+     * within the current transaction. Replaces the former Modulith two-event chain
+     * (ListingSuspensionRequestedEvent -> ListingSuspensionListener -> ListingSuspendedEvent).
+     */
+    private void applySuspension(Listing listing, UUID adminId, String reason, User admin) {
+        String previousStatus = listing.getStatus() != null ? listing.getStatus().name() : "UNKNOWN";
+
+        listing.setStatus(ListingStatus.SUSPENDED);
+        listingRepository.save(listing);
+
+        persistAuditLog(admin, "SUSPEND_LISTING", "LISTING", listing.getId().toString(),
+            safeJson(Map.of("previousStatus", previousStatus)),
+            safeJson(Map.of("status", "SUSPENDED", "reason", reason)));
+
+        eventPublisher.publishEvent(ListingSuspendedEvent.builder()
+            .listingId(listing.getId())
+            .listingTitle(listing.getTitle())
+            .ownerId(listing.getOwner() != null ? listing.getOwner().getId() : null)
+            .adminId(adminId)
+            .reason(reason)
+            .build());
+    }
+
     private void persistAuditLog(User actor, String action, String entityType,
                                   String entityId, String oldValue, String newValue) {
-        AuditLog log = new AuditLog();
-        log.setActor(actor);
-        log.setAction(action);
-        log.setEntityType(entityType);
-        log.setEntityId(entityId);
-        log.setOldValue(oldValue);
-        log.setNewValue(newValue);
-        auditLogRepository.save(log);
+        AuditLog auditLog = new AuditLog();
+        auditLog.setActor(actor);
+        auditLog.setAction(action);
+        auditLog.setEntityType(entityType);
+        auditLog.setEntityId(entityId);
+        auditLog.setOldValue(oldValue);
+        auditLog.setNewValue(newValue);
+        auditLogRepository.save(auditLog);
     }
 
     private String safeJson(Object data) {
@@ -351,15 +381,13 @@ public class AdminModerationServiceImpl implements AdminModerationService {
     }
 
     private ModerationListingSummaryResponse toModerationListingSummaryResponse(Listing listing) {
-        BigDecimal currentPrice = extractCurrentPrice(listing);
-
         return new ModerationListingSummaryResponse(
             listing.getId(),
             listing.getTitle(),
             listing.getSlug(),
             listing.getAddress(),
             listing.getArea(),
-            currentPrice,
+            extractCurrentPrice(listing),
             listing.getListingType() != null ? listing.getListingType().name() : null,
             listing.getPropertyType() != null ? listing.getPropertyType().getName() : null,
             listing.getOwner() != null ? listing.getOwner().getId() : null,
@@ -395,19 +423,19 @@ public class AdminModerationServiceImpl implements AdminModerationService {
         );
     }
 
-    private AuditLogResponse toAuditLogResponse(AuditLog log) {
+    private AuditLogResponse toAuditLogResponse(AuditLog auditLog) {
         return new AuditLogResponse(
-            log.getId(),
-            log.getActor() != null ? log.getActor().getId() : null,
-            log.getActor() != null ? log.getActor().getFullName() : null,
-            log.getAction(),
-            log.getEntityType(),
-            log.getEntityId(),
-            log.getOldValue(),
-            log.getNewValue(),
-            log.getIpAddress(),
-            log.getUserAgent(),
-            log.getCreatedAt()
+            auditLog.getId(),
+            auditLog.getActor() != null ? auditLog.getActor().getId() : null,
+            auditLog.getActor() != null ? auditLog.getActor().getFullName() : null,
+            auditLog.getAction(),
+            auditLog.getEntityType(),
+            auditLog.getEntityId(),
+            auditLog.getOldValue(),
+            auditLog.getNewValue(),
+            auditLog.getIpAddress(),
+            auditLog.getUserAgent(),
+            auditLog.getCreatedAt()
         );
     }
 }

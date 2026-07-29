@@ -1,11 +1,15 @@
 package com.yoedu.yoedurealestateapi.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,9 +26,8 @@ import com.yoedu.yoedurealestateapi.domain.enums.ListingStatus;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
 import com.yoedu.yoedurealestateapi.domain.enums.ReportReason;
 import com.yoedu.yoedurealestateapi.domain.enums.ReportStatus;
-import com.yoedu.yoedurealestateapi.domain.event.ListingSuspensionRequestedEvent;
+import com.yoedu.yoedurealestateapi.domain.event.ListingSuspendedEvent;
 import com.yoedu.yoedurealestateapi.domain.event.ReportResolvedEvent;
-import com.yoedu.yoedurealestateapi.domain.listings.api.ListingAuditApi;
 import com.yoedu.yoedurealestateapi.dto.moderation.AuditLogResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.GdprPurgeResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ListingAuditHistoryResponse;
@@ -45,11 +48,20 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.hibernate.envers.query.AuditQueryCreator;
+import org.hibernate.envers.AuditReader;
+import org.hibernate.envers.AuditReaderFactory;
+import org.hibernate.envers.DefaultRevisionEntity;
+import org.hibernate.envers.RevisionType;
+import org.hibernate.envers.query.AuditQuery;
+import org.hibernate.envers.query.criteria.AuditCriterion;
+import org.hibernate.envers.query.order.AuditOrder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -62,29 +74,13 @@ import org.springframework.data.jpa.domain.Specification;
 @ExtendWith(MockitoExtension.class)
 class AdminModerationServiceTest {
 
-    @Mock
-    private ListingRepository listingRepository;
-
-    @Mock
-    private ReportRepository reportRepository;
-
-    @Mock
-    private AuditLogRepository auditLogRepository;
-
-    @Mock
-    private ListingAuditApi listingAuditApi;
-
-    @Mock
-    private UserRepository userRepository;
-
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
-
-    @Mock
-    private EntityManager entityManager;
-
-    @Mock
-    private Query nativeQuery;
+    @Mock private ListingRepository listingRepository;
+    @Mock private ReportRepository reportRepository;
+    @Mock private AuditLogRepository auditLogRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private EntityManager entityManager;
+    @Mock private Query nativeQuery;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -153,6 +149,10 @@ class AdminModerationServiceTest {
         auditLog.setCreatedAt(Instant.now());
     }
 
+    // -------------------------------------------------------------------------
+    // getPendingListings
+    // -------------------------------------------------------------------------
+
     @Test
     void getPendingListings_Success() {
         Pageable pageable = PageRequest.of(0, 10);
@@ -172,6 +172,10 @@ class AdminModerationServiceTest {
         assertEquals("Căn hộ", dto.propertyTypeName());
     }
 
+    // -------------------------------------------------------------------------
+    // getReportsByStatus
+    // -------------------------------------------------------------------------
+
     @Test
     void getReportsByStatus_Success() {
         Pageable pageable = PageRequest.of(0, 10);
@@ -190,31 +194,55 @@ class AdminModerationServiceTest {
         assertEquals("Tran Van B", dto.reporterName());
     }
 
+    // -------------------------------------------------------------------------
+    // getListingAuditHistory
+    // -------------------------------------------------------------------------
+
     @Test
     void getListingAuditHistory_Success() {
         UUID listingId = listing.getId();
-        ListingAuditHistoryResponse historyDto = new ListingAuditHistoryResponse(
-            1, Instant.now(), "ADD", listingId, "Căn hộ trung tâm", "PENDING"
-        );
-
         when(listingRepository.existsById(listingId)).thenReturn(true);
-        when(listingAuditApi.getListingAuditHistory(listingId)).thenReturn(List.of(historyDto));
 
-        List<ListingAuditHistoryResponse> result = adminModerationService.getListingAuditHistory(listingId);
+        DefaultRevisionEntity revEntity = new DefaultRevisionEntity();
+        revEntity.setId(1);
+        revEntity.setTimestamp(System.currentTimeMillis());
 
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("Căn hộ trung tâm", result.get(0).title());
+        Object[] row = new Object[]{ listing, revEntity, RevisionType.ADD };
+
+        AuditReader auditReader = mock(AuditReader.class);
+        AuditQueryCreator queryCreator = mock(AuditQueryCreator.class);
+        AuditQuery auditQuery = mock(AuditQuery.class);
+
+        when(auditReader.createQuery()).thenReturn(queryCreator);
+        when(queryCreator.forRevisionsOfEntity(Listing.class, false, true)).thenReturn(auditQuery);
+        when(auditQuery.add(any(AuditCriterion.class))).thenReturn(auditQuery);
+        when(auditQuery.addOrder(any(AuditOrder.class))).thenReturn(auditQuery);
+        when(auditQuery.getResultList()).thenReturn(List.<Object[]>of(row));
+
+        try (MockedStatic<AuditReaderFactory> mockedFactory = mockStatic(AuditReaderFactory.class)) {
+            mockedFactory.when(() -> AuditReaderFactory.get(entityManager)).thenReturn(auditReader);
+
+            List<ListingAuditHistoryResponse> history = adminModerationService.getListingAuditHistory(listingId);
+
+            assertNotNull(history);
+            assertFalse(history.isEmpty());
+            assertEquals("Căn hộ trung tâm", history.get(0).title());
+            assertEquals("ADD", history.get(0).revisionType());
+        }
     }
 
     @Test
-    void getListingAuditHistory_NotFound_ThrowsResourceNotFoundException() {
+    void getListingAuditHistory_NotFound_ThrowsNotFoundException() {
         UUID missingId = UUID.randomUUID();
         when(listingRepository.existsById(missingId)).thenReturn(false);
 
         assertThrows(NotFoundException.class,
             () -> adminModerationService.getListingAuditHistory(missingId));
     }
+
+    // -------------------------------------------------------------------------
+    // getSystemAuditLogs
+    // -------------------------------------------------------------------------
 
     @Test
     void getSystemAuditLogs_Success() {
@@ -231,6 +259,10 @@ class AdminModerationServiceTest {
         assertEquals("Admin User", result.getContent().get(0).actorName());
     }
 
+    // -------------------------------------------------------------------------
+    // resolveReport
+    // -------------------------------------------------------------------------
+
     @Test
     void resolveReport_ResolveAndCascadeSuspend_Success() {
         UUID reportId = report.getId();
@@ -244,10 +276,36 @@ class AdminModerationServiceTest {
 
         assertNotNull(response);
         assertEquals("RESOLVED", response.status());
-
         verify(reportRepository).save(report);
-        verify(eventPublisher).publishEvent(any(ListingSuspensionRequestedEvent.class));
+        verify(listingRepository).save(listing);
+        verify(eventPublisher).publishEvent(any(ListingSuspendedEvent.class));
         verify(eventPublisher).publishEvent(any(ReportResolvedEvent.class));
+    }
+
+    @Test
+    void resolveReport_DismissWithoutSuspension_Success() {
+        UUID reportId = report.getId();
+        UUID adminId = adminUser.getId();
+        ResolveReportRequest request = new ResolveReportRequest("DISMISSED", "Báo cáo không đúng", false);
+
+        when(reportRepository.findWithListingByIdAndDeletedAtIsNull(reportId)).thenReturn(Optional.of(report));
+        when(userRepository.findByIdAndDeletedAtIsNull(adminId)).thenReturn(Optional.of(adminUser));
+
+        ReportResponse response = adminModerationService.resolveReport(reportId, adminId, request);
+
+        assertEquals("DISMISSED", response.status());
+        // Verify listing is NOT saved (no suspension triggered)
+        verify(listingRepository, never()).save(any());
+    }
+
+    @Test
+    void resolveReport_InvalidResolution_ThrowsBadRequest() {
+        UUID reportId = report.getId();
+        UUID adminId = adminUser.getId();
+        ResolveReportRequest request = new ResolveReportRequest("APPROVED", "Note", false);
+
+        assertThrows(BadRequestException.class,
+            () -> adminModerationService.resolveReport(reportId, adminId, request));
     }
 
     @Test
@@ -263,6 +321,10 @@ class AdminModerationServiceTest {
             () -> adminModerationService.resolveReport(reportId, adminId, request));
     }
 
+    // -------------------------------------------------------------------------
+    // suspendListing
+    // -------------------------------------------------------------------------
+
     @Test
     void suspendListing_Success() {
         UUID listingId = listing.getId();
@@ -274,7 +336,9 @@ class AdminModerationServiceTest {
 
         adminModerationService.suspendListing(listingId, adminId, request);
 
-        verify(eventPublisher).publishEvent(any(ListingSuspensionRequestedEvent.class));
+        verify(listingRepository).save(listing);
+        assertEquals(ListingStatus.SUSPENDED, listing.getStatus());
+        verify(eventPublisher).publishEvent(any(ListingSuspendedEvent.class));
     }
 
     @Test
@@ -290,6 +354,10 @@ class AdminModerationServiceTest {
             () -> adminModerationService.suspendListing(listingId, adminId, request));
     }
 
+    // -------------------------------------------------------------------------
+    // getListingStatus
+    // -------------------------------------------------------------------------
+
     @Test
     void getListingStatus_Success() {
         UUID listingId = listing.getId();
@@ -301,6 +369,19 @@ class AdminModerationServiceTest {
         assertEquals(listingId, response.listingId());
         assertEquals("PENDING", response.status());
     }
+
+    @Test
+    void getListingStatus_NotFound_ThrowsNotFoundException() {
+        UUID missingListingId = UUID.randomUUID();
+        when(listingRepository.findStatusById(missingListingId)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class,
+            () -> adminModerationService.getListingStatus(missingListingId));
+    }
+
+    // -------------------------------------------------------------------------
+    // purgeUserGdpr
+    // -------------------------------------------------------------------------
 
     @Test
     void purgeUserGdpr_Success() {
@@ -326,10 +407,19 @@ class AdminModerationServiceTest {
     }
 
     @Test
+    void purgeUserGdpr_UserNotFound_ThrowsNotFoundException() {
+        UUID missingUserId = UUID.randomUUID();
+        when(userRepository.findById(missingUserId)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class,
+            () -> adminModerationService.purgeUserGdpr(missingUserId, adminUser.getId()));
+    }
+
+    @Test
     void purgeUserGdpr_NotSoftDeleted_ThrowsBadRequestException() {
         User activeUser = new User();
         activeUser.setId(UUID.randomUUID());
-        activeUser.setDeletedAt(null); // Active user!
+        activeUser.setDeletedAt(null);
 
         when(userRepository.findById(activeUser.getId())).thenReturn(Optional.of(activeUser));
 
