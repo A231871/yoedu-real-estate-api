@@ -160,6 +160,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
+        <!-- Redis (Pub/Sub for real-time ban events) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
         <!-- Reactor Netty (required by StompBrokerRelay for TCP to external broker) -->
         <dependency>
             <groupId>io.projectreactor.netty</groupId>
