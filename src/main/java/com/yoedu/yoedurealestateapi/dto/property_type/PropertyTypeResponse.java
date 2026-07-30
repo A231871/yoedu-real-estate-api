@@ -5,5 +5,6 @@ public record PropertyTypeResponse(
     String name,
     String slug,
     String icon,
-    Integer sortOrder
+    Integer sortOrder,
+    Boolean isActive
 ) {}

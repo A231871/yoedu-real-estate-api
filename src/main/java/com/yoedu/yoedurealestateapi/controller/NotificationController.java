@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/notifications")
+@RequestMapping("/notifications")
 @RequiredArgsConstructor
 @Tag(name = "Notifications", description = "APIs quản lý hộp thư và lịch sử thông báo")
 public class NotificationController {
