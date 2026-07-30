@@ -30,6 +30,8 @@ public class AuthController {
     private final AuthService authService;
     private final AppJwtProperties appJwtProperties;
 
+    private final String SET_COOKIE_HEADER = "Set-Cookie";
+
     @PostMapping("/register")
     @Operation(summary = "Register a new user",
             description = "Stores a pending registration in Redis and sends a verification email; the account is only created once the user verifies")
@@ -52,7 +54,7 @@ public class AuthController {
         Pair<AuthResponse, String> result = authService.verifyRegistration(token);
 
         return ResponseEntity.ok()
-                .header("Set-Cookie", buildRefreshTokenCookie(result.getRight()).toString())
+                .header(SET_COOKIE_HEADER, buildRefreshTokenCookie(result.getRight()).toString())
                 .body(ApiResponse.success("Xác minh tài khoản thành công", result.getLeft()));
     }
 
@@ -63,7 +65,7 @@ public class AuthController {
         Pair<AuthResponse, String> result = authService.login(request);
 
         return ResponseEntity.ok()
-                .header("Set-Cookie", buildRefreshTokenCookie(result.getRight()).toString())
+                .header(SET_COOKIE_HEADER, buildRefreshTokenCookie(result.getRight()).toString())
                 .body(ApiResponse.success("Đăng nhập thành công", result.getLeft()));
     }
 
@@ -75,7 +77,7 @@ public class AuthController {
 
         Pair<AuthResponse, String> result = authService.refresh(request);
         return ResponseEntity.ok()
-                .header("Set-Cookie", buildRefreshTokenCookie(result.getRight()).toString())
+                .header(SET_COOKIE_HEADER, buildRefreshTokenCookie(result.getRight()).toString())
                 .body(ApiResponse.success("Token đã được làm mới thành công", result.getLeft()));
     }
 

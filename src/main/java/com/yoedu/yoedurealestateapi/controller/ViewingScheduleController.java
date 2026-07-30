@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * CRUD controller cho Viewing Schedules.
  */
 @RestController
-@RequestMapping("/api/viewing-schedules")
+@RequestMapping("/viewing-schedules")
 @RequiredArgsConstructor
 @Tag(name = "Viewing Schedules", description = "APIs quản lý lịch hẹn xem nhà")
 public class ViewingScheduleController {

@@ -10,17 +10,23 @@ import java.util.List;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
+import org.hibernate.envers.RelationTargetAuditMode;
 
 @Getter
 @Setter
 @Table(name = "listings")
 @Entity
+@Audited
 public class Listing extends ArchivableEntity {
 
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "agent_id")
     private User agent;
@@ -57,14 +63,17 @@ public class Listing extends ArchivableEntity {
     @Column(name = "listing_type", nullable = false)
     private ListingType listingType;
 
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "property_type_id", nullable = false)
     private PropertyType propertyType;
 
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ward_code", nullable = false)
     private Ward ward;
 
+    @NotAudited
     @ManyToMany
     @JoinTable(
         name = "listing_amenities",
@@ -73,6 +82,7 @@ public class Listing extends ArchivableEntity {
     )
     Set<Amenity> amenities = new HashSet<>();
 
+    @NotAudited
     @OneToMany(
         mappedBy = "listing",
         cascade = CascadeType.ALL,
@@ -80,6 +90,7 @@ public class Listing extends ArchivableEntity {
     )
     private Set<ListingMedia> listingMedias = new HashSet<>();
 
+    @NotAudited
     @OneToMany(
         mappedBy = "listing",
         cascade = CascadeType.ALL,

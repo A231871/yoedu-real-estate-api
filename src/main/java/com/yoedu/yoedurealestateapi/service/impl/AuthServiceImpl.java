@@ -1,5 +1,6 @@
 package com.yoedu.yoedurealestateapi.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yoedu.yoedurealestateapi.common.exception.BadRequestException;
 import com.yoedu.yoedurealestateapi.domain.entities.RefreshToken;
 import com.yoedu.yoedurealestateapi.domain.entities.User;
@@ -16,7 +17,6 @@ import com.yoedu.yoedurealestateapi.security.JwtService;
 import com.yoedu.yoedurealestateapi.security.TokenType;
 import com.yoedu.yoedurealestateapi.service.AuthService;
 import com.yoedu.yoedurealestateapi.service.EmailService;
-import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;

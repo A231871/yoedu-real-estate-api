@@ -23,7 +23,7 @@ import com.yoedu.yoedurealestateapi.domain.entities.User;
 @Service
 public class JwtService {
 
-    private final String TOKEN_TYPE_CLAIM = "token_type";
+    private static final String TOKEN_TYPE_CLAIM = "token_type";
     private final AppJwtProperties properties;
     private final SecretKey secretKey;
 

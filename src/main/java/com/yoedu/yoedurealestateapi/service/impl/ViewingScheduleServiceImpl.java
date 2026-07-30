@@ -7,6 +7,9 @@ import com.yoedu.yoedurealestateapi.domain.entities.User;
 import com.yoedu.yoedurealestateapi.domain.entities.ViewingSchedule;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingStatus;
 import com.yoedu.yoedurealestateapi.domain.enums.ViewingScheduleStatus;
+import com.yoedu.yoedurealestateapi.domain.event.ViewingCancelledEvent;
+import com.yoedu.yoedurealestateapi.domain.event.ViewingConfirmedEvent;
+import com.yoedu.yoedurealestateapi.domain.event.ViewingScheduledEvent;
 import com.yoedu.yoedurealestateapi.dto.view_schedule.CreateViewingScheduleRequest;
 import com.yoedu.yoedurealestateapi.dto.view_schedule.ViewingScheduleResponse;
 import com.yoedu.yoedurealestateapi.repository.ListingRepository;
@@ -21,6 +24,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -32,6 +36,7 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
 
     private final ViewingScheduleRepository viewingScheduleRepository;
     private final ListingRepository listingRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${app.viewing.buffer-minutes:15}")
     private int bufferMinutes;
@@ -96,6 +101,16 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         schedule.setReminderSent(false);
 
         ViewingSchedule saved = viewingScheduleRepository.save(schedule);
+
+        eventPublisher.publishEvent(ViewingScheduledEvent.builder()
+                .scheduleId(saved.getId())
+                .listingId(saved.getListingId())
+                .clientId(saved.getClientId())
+                .hostId(saved.getHostId())
+                .scheduledTime(saved.getScheduledLocalTime() != null ? saved.getScheduledLocalTime().toString() : utcStart.toString())
+                .note(saved.getNote())
+                .build());
+
         return toDto(saved);
     }
 
@@ -114,6 +129,15 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         schedule.setConfirmedAt(Instant.now());
 
         ViewingSchedule saved = viewingScheduleRepository.save(schedule);
+
+        eventPublisher.publishEvent(ViewingConfirmedEvent.builder()
+                .scheduleId(saved.getId())
+                .listingId(saved.getListingId())
+                .clientId(saved.getClientId())
+                .hostId(saved.getHostId())
+                .scheduledTime(saved.getScheduledLocalTime() != null ? saved.getScheduledLocalTime().toString() : saved.getScheduledUtcTime().toString())
+                .build());
+
         return toDto(saved);
     }
 
@@ -135,6 +159,16 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         schedule.setCancelledAt(Instant.now());
 
         ViewingSchedule saved = viewingScheduleRepository.save(schedule);
+
+        eventPublisher.publishEvent(ViewingCancelledEvent.builder()
+                .scheduleId(saved.getId())
+                .listingId(saved.getListingId())
+                .clientId(saved.getClientId())
+                .hostId(saved.getHostId())
+                .cancelledBy(actorId)
+                .reason(reason)
+                .build());
+
         return toDto(saved);
     }
 
@@ -231,5 +265,3 @@ public class ViewingScheduleServiceImpl implements ViewingScheduleService {
         return dto;
     }
 }
-
-

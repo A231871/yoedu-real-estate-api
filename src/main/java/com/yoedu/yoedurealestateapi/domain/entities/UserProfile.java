@@ -1,5 +1,7 @@
 package com.yoedu.yoedurealestateapi.domain.entities;
 
+import org.hibernate.envers.Audited;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -8,6 +10,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "user_profile")
+@Audited
 public class UserProfile extends ArchivableEntity {
 
     @OneToOne(fetch = FetchType.LAZY)
