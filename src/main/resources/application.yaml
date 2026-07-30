@@ -37,6 +37,11 @@ spring:
     schemas: public
     locations: classpath:db/migration
 
+  # NOTE: This is dev smtp. Change to proper email domain in production
+  mail:
+    host: localhost
+    port: 1025
+
 springdoc:
   api-docs:
     path: /v3/api-docs
