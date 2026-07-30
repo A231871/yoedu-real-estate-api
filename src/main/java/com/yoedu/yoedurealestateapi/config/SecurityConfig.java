@@ -40,16 +40,12 @@ public class SecurityConfig {
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-            .exceptionHandling(exceptions ->
-                exceptions
-                    .authenticationEntryPoint(authenticationEntryPoint)
-                    .accessDeniedHandler(accessDeniedHandler)
-            )
             .authorizeHttpRequests(auth ->
                 auth
-                    .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/auth/verify").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll()
                     .requestMatchers(
                         "/swagger-ui.html",
                         "/swagger-ui/**",
@@ -57,6 +53,12 @@ public class SecurityConfig {
                         "/ws/**" // WebSocket SockJS handshake — JWT auth via STOMP interceptor
                     ).permitAll()
                     .requestMatchers("/error").permitAll()
+                    .anyRequest().authenticated()
+            )
+            .exceptionHandling(exceptions ->
+                exceptions
+                    .authenticationEntryPoint(authenticationEntryPoint)
+                    .accessDeniedHandler(accessDeniedHandler)
             )
             .addFilterBefore(
                 jwtAuthenticationFilter,

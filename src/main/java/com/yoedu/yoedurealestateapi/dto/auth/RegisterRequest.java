@@ -15,11 +15,10 @@ public record RegisterRequest(
      * and one digit. Special characters are welcome but not required.
      */
     @NotBlank(message = "Password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters")
-    @Pattern(
-        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$",
-        message = "Password must contain at least one uppercase letter, one lowercase letter, and one digit"
-    )
+    @Pattern(regexp = ".*[a-z].*", message = "must contain a lowercase letter")
+    @Pattern(regexp = ".*[A-Z].*", message = "must contain an uppercase letter")
+    @Pattern(regexp = ".*\\d.*", message = "must contain a digit")
+    @Size(min = 8, message = "must be at least 8 characters")
     String password,
 
     @NotBlank(message = "Full name is required")

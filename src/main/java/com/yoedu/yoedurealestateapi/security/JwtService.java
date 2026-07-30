@@ -122,6 +122,7 @@ public class JwtService {
 
         return Jwts.builder()
                 .subject(userId)
+                .issuer(properties.issuer())
                 .claim("email", email)
                 .claim(TOKEN_TYPE_CLAIM, TokenType.VERIFICATION_TOKEN.name())
                 .issuedAt(Date.from(now))

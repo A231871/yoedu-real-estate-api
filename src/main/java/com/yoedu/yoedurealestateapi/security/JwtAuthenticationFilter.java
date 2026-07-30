@@ -34,38 +34,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             // Auth header exists?
             String authHeader = request.getHeader(AUTHORIZATION_HEADER);
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                logger.error("No Bearer Header, skip processing");
-                return;
+            if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
+                
+                // Access token valid?
+                final String token = authHeader.substring(BEARER_PREFIX.length());
+                if (jwtService.validateToken(token, TokenType.ACCESS_TOKEN)) {
+                    
+                    // User Id exists?
+                    String userId = jwtService.extractUserId(token);
+                    if (userId != null) {
+                        List<SimpleGrantedAuthority> authorities = jwtService
+                            .extractRoles(token)
+                            .stream()
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                            .toList();
+
+                        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+                            userId,
+                            null,
+                            authorities
+                        );
+
+                        SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                    } else {
+                        logger.debug("No user Id from the access token");
+                    }
+                } else {
+                    logger.debug("Access token invalid or expired");
+                }
+            } else {
+                logger.debug("No Bearer Header, skip processing");
             }
-
-            // Access token valid?
-            final String token = authHeader.substring(BEARER_PREFIX.length());
-            if (!jwtService.validateToken(token, TokenType.ACCESS_TOKEN)) {
-                logger.error("Access token invalid or expired");
-                return;
-            }
-
-            // User Id exists?
-            String userId = jwtService.extractUserId(token);
-            if (userId == null) {
-                logger.error("No user Id from the access token");
-                return;
-            }
-
-            List<SimpleGrantedAuthority> authorities = jwtService
-                .extractRoles(token)
-                .stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                .toList();
-
-            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                userId,
-                null,
-                authorities
-            );
-
-            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
         } catch (JwtException | IllegalArgumentException e) {
             logger.error("Failed to process JWT Token: " + e.getMessage());
             SecurityContextHolder.clearContext();

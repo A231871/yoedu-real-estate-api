@@ -7,6 +7,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -27,6 +31,7 @@ public class RefreshToken extends AuditableEntity {
     private String deviceInfo;
 
     @Column(name = "ip_address", columnDefinition = "inet")
+    @JdbcTypeCode(SqlTypes.INET)
     private String ipAddress;
 
     @Column(name = "expires_at", nullable = false)
