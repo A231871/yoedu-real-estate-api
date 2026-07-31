@@ -2,13 +2,21 @@ package com.yoedu.yoedurealestateapi.controller;
 
 import com.yoedu.yoedurealestateapi.common.ApiResponse;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
+import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingDetailResponse;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingSummaryResponse;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingUpsertRequest;
 import com.yoedu.yoedurealestateapi.service.ListingService;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -26,41 +35,52 @@ public class ListingController {
     private final ListingService listingService;
 
     @GetMapping
-    public ApiResponse<List<ListingSummaryResponse>> getListings() {
-        return ApiResponse.success(listingService.getListingSummaries());
+    public ResponseEntity<ApiResponse<Page<ListingSummaryResponse>>> getListings(
+        @ParameterObject
+        @PageableDefault(
+            size = 20,
+            sort = "createdAt",
+            direction = Sort.Direction.DESC
+        ) Pageable pageable,
+        @RequestParam ListingType listingType
+    ) {
+        return ResponseEntity.ok(
+            ApiResponse.success(listingService.getListingSummaries(pageable, listingType))
+        );
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<ListingDetailResponse> getListingDetail(
+    public ResponseEntity<ApiResponse<ListingDetailResponse>> getListingDetail(
         @PathVariable String id
     ) {
         ListingDetailResponse listingDetailResponse = listingService
             .getListingDetail(id)
             .orElseThrow(() -> new NotFoundException("Listing not found"));
 
-        return ApiResponse.success(listingDetailResponse);
+        return ResponseEntity.ok(ApiResponse.success(listingDetailResponse));
     }
 
     @PostMapping
-    public ApiResponse<String> createListing(
+    public ResponseEntity<ApiResponse<String>> createListing(
         @Valid @RequestBody ListingUpsertRequest request
     ) {
         listingService.createListing(request);
-        return ApiResponse.success("Created new listing");
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(ApiResponse.success("Created new listing"));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<String> updateListing(
+    public ResponseEntity<ApiResponse<String>> updateListing(
         @PathVariable String id,
         @Valid @RequestBody ListingUpsertRequest request
     ) {
         listingService.updateListing(id, request);
-        return ApiResponse.success("Updated listing");
+        return ResponseEntity.ok(ApiResponse.success("Updated listing"));
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<String> deleteListing(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<String>> deleteListing(@PathVariable String id) {
         listingService.deleteListing(id);
-        return ApiResponse.success("Deleted listing");
+        return ResponseEntity.ok(ApiResponse.success("Deleted listing"));
     }
 }

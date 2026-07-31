@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
+import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -30,4 +31,6 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
 
     /** Used by AdminPropertyTypeServiceImpl to check before soft-deleting a property type. */
     boolean existsByPropertyTypeIdAndDeletedAtIsNull(Integer propertyTypeId);
+
+    Page<Listing> findAllByListingType(ListingType listingType, Pageable pageable);
 }
