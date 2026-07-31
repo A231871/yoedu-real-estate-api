@@ -3,9 +3,10 @@ version: '3.8'
 services:
   postgres:
     image: postgres:17
-    build: .
     container_name: yoedu_postgres
     restart: unless-stopped
+    command: >
+      sh -c "ln -sf /usr/share/zoneinfo/Asia/Ho_Chi_Minh /usr/share/zoneinfo/Asia/Saigon && exec docker-entrypoint.sh postgres"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
