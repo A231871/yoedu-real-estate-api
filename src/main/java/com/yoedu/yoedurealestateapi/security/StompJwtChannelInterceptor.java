@@ -1,6 +1,5 @@
 package com.yoedu.yoedurealestateapi.security;
 
-import com.yoedu.yoedurealestateapi.domain.entities.Conversation;
 import com.yoedu.yoedurealestateapi.repository.ConversationRepository;
 import java.security.Principal;
 import java.util.List;
@@ -46,7 +45,6 @@ import static com.yoedu.yoedurealestateapi.security.WebSocketHandshakeIntercepto
 @Slf4j
 public class StompJwtChannelInterceptor implements ChannelInterceptor {
 
-  private final JwtService jwtService;
   private final ConversationRepository conversationRepository;
   private final org.springframework.util.AntPathMatcher pathMatcher = new org.springframework.util.AntPathMatcher();
   private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;

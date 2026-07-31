@@ -1,8 +1,9 @@
 package com.yoedu.yoedurealestateapi.dto.auth;
 
+import com.yoedu.yoedurealestateapi.security.password.ValidPassword;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record RegisterRequest(
@@ -15,11 +16,8 @@ public record RegisterRequest(
      * and one digit. Special characters are welcome but not required.
      */
     @NotBlank(message = "Password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters")
-    @Pattern(
-        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$",
-        message = "Password must contain at least one uppercase letter, one lowercase letter, and one digit"
-    )
+    @Size(min = 8, message = "must be at least 8 characters")
+    @ValidPassword
     String password,
 
     @NotBlank(message = "Full name is required")

@@ -37,6 +37,11 @@ spring:
     schemas: public
     locations: classpath:db/migration
 
+  # NOTE: This is dev smtp. Change to proper email domain in production
+  mail:
+    host: localhost
+    port: 1025
+
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -53,6 +58,7 @@ app:
     issuer: estate-api
     secret: ${JWT_SECRET}
     access-token-ttl-minutes: 30
+    verification-token-ttl-minutes: 15
     refresh-token-ttl-days: 7
   viewing:
     buffer-minutes: 15

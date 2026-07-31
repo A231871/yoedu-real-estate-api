@@ -1,7 +1,6 @@
 package com.yoedu.yoedurealestateapi.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.yoedu.yoedurealestateapi.common.exception.BadRequestException;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
 import com.yoedu.yoedurealestateapi.domain.entities.AuditLog;
@@ -21,11 +20,14 @@ import com.yoedu.yoedurealestateapi.dto.moderation.ModerationListingSummaryRespo
 import com.yoedu.yoedurealestateapi.dto.moderation.ReportResponse;
 import com.yoedu.yoedurealestateapi.dto.moderation.ResolveReportRequest;
 import com.yoedu.yoedurealestateapi.dto.moderation.SuspendListingRequest;
+import com.yoedu.yoedurealestateapi.dto.user.UpdateProfileRequest;
 import com.yoedu.yoedurealestateapi.repository.AuditLogRepository;
 import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.ReportRepository;
 import com.yoedu.yoedurealestateapi.repository.UserRepository;
 import com.yoedu.yoedurealestateapi.service.AdminModerationService;
+import com.yoedu.yoedurealestateapi.service.UserProfileService;
+
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.JoinType;
 import java.math.BigDecimal;
@@ -51,6 +53,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AdminModerationServiceImpl implements AdminModerationService {
 
     private final ListingRepository listingRepository;
@@ -60,23 +63,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
     private final ApplicationEventPublisher eventPublisher;
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
-
-    public AdminModerationServiceImpl(
-            ListingRepository listingRepository,
-            ReportRepository reportRepository,
-            AuditLogRepository auditLogRepository,
-            UserRepository userRepository,
-            ApplicationEventPublisher eventPublisher,
-            EntityManager entityManager,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) ObjectMapper objectMapper) {
-        this.listingRepository = listingRepository;
-        this.reportRepository = reportRepository;
-        this.auditLogRepository = auditLogRepository;
-        this.userRepository = userRepository;
-        this.eventPublisher = eventPublisher;
-        this.entityManager = entityManager;
-        this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper().registerModule(new JavaTimeModule());
-    }
+    private final UserProfileService userProfileService;
 
     // -------------------------------------------------------------------------
     // Subtask 2 — Read endpoints
@@ -257,12 +244,17 @@ public class AdminModerationServiceImpl implements AdminModerationService {
 
         // Update managed entity in memory first to prevent Hibernate L1 cache from re-flushing old PII
         user.setEmail(anonymizedEmail);
-        user.setFullName("GDPR Anonymized User");
-        user.setPhone(null);
         user.setPasswordHash(null);
-        user.setAvatarUrl(null);
-        user.setBio(null);
         user.setProviderId(null);
+
+        // Anonymize profile
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setFullName("GDPR Anonymized User");
+        request.setPhone(null);
+        request.setAvatarUrl(null);
+        request.setBio(null);
+
+        userProfileService.updateProfile(user.getId(), request);
         userRepository.save(user);
 
         // Native SQL Purge 1: Scrub users_aud (Envers audit history)
@@ -386,7 +378,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
             listing.getListingType() != null ? listing.getListingType().name() : null,
             listing.getPropertyType() != null ? listing.getPropertyType().getName() : null,
             listing.getOwner() != null ? listing.getOwner().getId() : null,
-            listing.getOwner() != null ? listing.getOwner().getFullName() : null,
+            listing.getOwner() != null ? listing.getOwner().getProfile().getFullName() : null,
             listing.getStatus() != null ? listing.getStatus().name() : null,
             listing.getCreatedAt()
         );
@@ -406,13 +398,13 @@ public class AdminModerationServiceImpl implements AdminModerationService {
             report.getListing() != null ? report.getListing().getId() : null,
             report.getListing() != null ? report.getListing().getTitle() : null,
             report.getReporter() != null ? report.getReporter().getId() : null,
-            report.getReporter() != null ? report.getReporter().getFullName() : null,
+            report.getReporter() != null ? report.getReporter().getProfile().getFullName() : null,
             report.getReason() != null ? report.getReason().name() : null,
             report.getDescription(),
             report.getStatus() != null ? report.getStatus().name() : null,
             report.getAdminNote(),
             report.getResolvedBy() != null ? report.getResolvedBy().getId() : null,
-            report.getResolvedBy() != null ? report.getResolvedBy().getFullName() : null,
+            report.getResolvedBy() != null ? report.getResolvedBy().getProfile().getFullName() : null,
             report.getResolvedAt(),
             report.getCreatedAt()
         );
@@ -422,7 +414,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
         return new AuditLogResponse(
             auditLog.getId(),
             auditLog.getActor() != null ? auditLog.getActor().getId() : null,
-            auditLog.getActor() != null ? auditLog.getActor().getFullName() : null,
+            auditLog.getActor() != null ? auditLog.getActor().getProfile().getFullName() : null,
             auditLog.getAction(),
             auditLog.getEntityType(),
             auditLog.getEntityId(),

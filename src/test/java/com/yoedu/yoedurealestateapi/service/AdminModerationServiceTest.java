@@ -22,6 +22,7 @@ import com.yoedu.yoedurealestateapi.domain.entities.ListingPrice;
 import com.yoedu.yoedurealestateapi.domain.entities.PropertyType;
 import com.yoedu.yoedurealestateapi.domain.entities.Report;
 import com.yoedu.yoedurealestateapi.domain.entities.User;
+import com.yoedu.yoedurealestateapi.domain.entities.UserProfile;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingStatus;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
 import com.yoedu.yoedurealestateapi.domain.enums.ReportReason;
@@ -81,6 +82,7 @@ class AdminModerationServiceTest {
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private EntityManager entityManager;
     @Mock private Query nativeQuery;
+    @Mock private UserProfileService userProfileService;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -99,15 +101,21 @@ class AdminModerationServiceTest {
     void setUp() {
         owner = new User();
         owner.setId(UUID.randomUUID());
-        owner.setFullName("Nguyen Van A");
+        UserProfile ownerProfile = new UserProfile();
+        ownerProfile.setFullName("Nguyen Van A");
+        owner.setProfile(ownerProfile);
 
         reporter = new User();
         reporter.setId(UUID.randomUUID());
-        reporter.setFullName("Tran Van B");
+        UserProfile reporterProfile = new UserProfile();
+        reporterProfile.setFullName("Tran Van B");
+        reporter.setProfile(reporterProfile);
 
         adminUser = new User();
         adminUser.setId(UUID.randomUUID());
-        adminUser.setFullName("Admin User");
+        UserProfile adminProfile = new UserProfile();
+        adminProfile.setFullName("Admin User");
+        adminUser.setProfile(adminProfile);
 
         PropertyType propertyType = new PropertyType();
         propertyType.setId(1);

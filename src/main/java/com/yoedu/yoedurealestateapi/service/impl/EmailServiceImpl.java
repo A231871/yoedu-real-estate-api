@@ -1,17 +1,26 @@
 package com.yoedu.yoedurealestateapi.service.impl;
 
 import com.yoedu.yoedurealestateapi.service.EmailService;
-import lombok.extern.slf4j.Slf4j;
+
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-@Slf4j
 @Service
+@RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
+
+    private final JavaMailSender mailSender;
 
     @Override
     public void sendEmail(String to, String subject, String body) {
-        log.info("[EMAIL DISPATCH] Sending email to: {}, Subject: '{}', Content snippet: '{}'",
-                to, subject, body.length() > 100 ? body.substring(0, 100) + "..." : body);
-        // Simulation / integration point for JavaMailSender or HTML template builder
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom("noreply@yoedurealestate.com");
+        message.setTo(to);
+        message.setSubject(subject);
+        message.setText(body);
+        mailSender.send(message);
     }
 }

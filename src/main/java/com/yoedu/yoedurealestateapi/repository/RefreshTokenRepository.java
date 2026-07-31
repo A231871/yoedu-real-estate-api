@@ -32,31 +32,6 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     int revokeByTokenHash(@Param("tokenHash") String tokenHash);
 
     /**
-     * Inserts a new refresh token using a native query to support PostgreSQL INET casting.
-     * clearAutomatically = true forces Hibernate to evict its L1 cache after the native INSERT.
-     */
-    @Modifying(clearAutomatically = true)
-    @Query(value = """
-            INSERT INTO refresh_tokens (user_id, token_hash, device_info, ip_address, expires_at, revoked, created_at, updated_at)
-            VALUES (
-                CAST(:userId AS UUID),
-                :tokenHash,
-                :deviceInfo,
-                CAST(:ipAddress AS inet),
-                :expiresAt,
-                FALSE,
-                now(),
-                now()
-            )
-            """, nativeQuery = true)
-    int insertRefreshToken(
-            @Param("userId") UUID userId,
-            @Param("tokenHash") String tokenHash,
-            @Param("deviceInfo") String deviceInfo,
-            @Param("ipAddress") String ipAddress,
-            @Param("expiresAt") java.time.Instant expiresAt);
-
-    /**
      * Deletes expired and revoked tokens older than 7 days.
      * Called periodically by RefreshTokenCleanupCronJob to prevent table bloat.
      */

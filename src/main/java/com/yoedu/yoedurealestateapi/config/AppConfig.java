@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Configuration
 @EnableAsync
 public class AppConfig {
@@ -22,6 +24,11 @@ public class AppConfig {
                 .setFieldAccessLevel(org.modelmapper.config.Configuration.AccessLevel.PRIVATE)
                 .setMethodAccessLevel(org.modelmapper.config.Configuration.AccessLevel.PUBLIC);
         return modelMapper;
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 
     @Bean(name = "taskExecutor")
