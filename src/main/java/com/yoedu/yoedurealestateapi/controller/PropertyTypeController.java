@@ -5,6 +5,7 @@ import com.yoedu.yoedurealestateapi.dto.property_type.PropertyTypeResponse;
 import com.yoedu.yoedurealestateapi.service.PropertyTypeService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,7 +18,7 @@ public class PropertyTypeController {
     private final PropertyTypeService propertyTypeService;
 
     @GetMapping
-    public ApiResponse<List<PropertyTypeResponse>> getPropertyTypes() {
-        return ApiResponse.success(propertyTypeService.getPropertyTypes());
+    public ResponseEntity<ApiResponse<List<PropertyTypeResponse>>> getPropertyTypes() {
+        return ResponseEntity.ok(ApiResponse.success(propertyTypeService.getPropertyTypes()));
     }
 }

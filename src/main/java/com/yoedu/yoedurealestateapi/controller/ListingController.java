@@ -15,6 +15,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,7 +35,7 @@ public class ListingController {
     private final ListingService listingService;
 
     @GetMapping
-    public ApiResponse<Page<ListingSummaryResponse>> getListings(
+    public ResponseEntity<ApiResponse<Page<ListingSummaryResponse>>> getListings(
         @ParameterObject
         @PageableDefault(
             size = 20,
@@ -42,40 +44,43 @@ public class ListingController {
         ) Pageable pageable,
         @RequestParam ListingType listingType
     ) {
-        return ApiResponse.success(listingService.getListingSummaries(pageable, listingType));
+        return ResponseEntity.ok(
+            ApiResponse.success(listingService.getListingSummaries(pageable, listingType))
+        );
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<ListingDetailResponse> getListingDetail(
+    public ResponseEntity<ApiResponse<ListingDetailResponse>> getListingDetail(
         @PathVariable String id
     ) {
         ListingDetailResponse listingDetailResponse = listingService
             .getListingDetail(id)
             .orElseThrow(() -> new NotFoundException("Listing not found"));
 
-        return ApiResponse.success(listingDetailResponse);
+        return ResponseEntity.ok(ApiResponse.success(listingDetailResponse));
     }
 
     @PostMapping
-    public ApiResponse<String> createListing(
+    public ResponseEntity<ApiResponse<String>> createListing(
         @Valid @RequestBody ListingUpsertRequest request
     ) {
         listingService.createListing(request);
-        return ApiResponse.success("Created new listing");
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(ApiResponse.success("Created new listing"));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<String> updateListing(
+    public ResponseEntity<ApiResponse<String>> updateListing(
         @PathVariable String id,
         @Valid @RequestBody ListingUpsertRequest request
     ) {
         listingService.updateListing(id, request);
-        return ApiResponse.success("Updated listing");
+        return ResponseEntity.ok(ApiResponse.success("Updated listing"));
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<String> deleteListing(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<String>> deleteListing(@PathVariable String id) {
         listingService.deleteListing(id);
-        return ApiResponse.success("Deleted listing");
+        return ResponseEntity.ok(ApiResponse.success("Deleted listing"));
     }
 }

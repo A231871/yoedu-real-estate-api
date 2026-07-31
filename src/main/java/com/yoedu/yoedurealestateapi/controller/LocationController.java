@@ -6,6 +6,7 @@ import com.yoedu.yoedurealestateapi.dto.location.WardResponse;
 import com.yoedu.yoedurealestateapi.service.LocationService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,16 +20,16 @@ public class LocationController {
     private final LocationService locationService;
 
     @GetMapping("/provinces")
-    public ApiResponse<List<ProvinceResponse>> getProvinces() {
-        return ApiResponse.success(locationService.getProvinces());
+    public ResponseEntity<ApiResponse<List<ProvinceResponse>>> getProvinces() {
+        return ResponseEntity.ok(ApiResponse.success(locationService.getProvinces()));
     }
 
     @GetMapping("/wards/{provinceCode}")
-    public ApiResponse<List<WardResponse>> getWards(
+    public ResponseEntity<ApiResponse<List<WardResponse>>> getWards(
         @PathVariable String provinceCode
     ) {
-        return ApiResponse.success(
-            locationService.getExistingWardsByProvince(provinceCode)
+        return ResponseEntity.ok(
+            ApiResponse.success(locationService.getExistingWardsByProvince(provinceCode))
         );
     }
 }
