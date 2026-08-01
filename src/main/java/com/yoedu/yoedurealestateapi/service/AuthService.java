@@ -11,5 +11,7 @@ public interface AuthService {
 
     Pair<AuthResponse, String> verifyRegistration(String token);
 
+    void revokeRefreshToken(String token);
+
     Pair<AuthResponse, String> refresh(RefreshRequest request);
 }

@@ -5,14 +5,21 @@ import com.yoedu.yoedurealestateapi.dto.auth.*;
 import com.yoedu.yoedurealestateapi.service.AuthService;
 import com.yoedu.yoedurealestateapi.security.AppJwtProperties;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+
 import org.apache.commons.lang3.tuple.Pair;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,8 +36,6 @@ public class AuthController {
 
     private final AuthService authService;
     private final AppJwtProperties appJwtProperties;
-
-    private final String SET_COOKIE_HEADER = "Set-Cookie";
 
     @PostMapping("/register")
     @Operation(summary = "Register a new user",
@@ -54,18 +59,19 @@ public class AuthController {
         Pair<AuthResponse, String> result = authService.verifyRegistration(token);
 
         return ResponseEntity.ok()
-                .header(SET_COOKIE_HEADER, buildRefreshTokenCookie(result.getRight()).toString())
+                .header(HttpHeaders.SET_COOKIE, buildRefreshTokenCookie(result.getRight()).toString())
                 .body(ApiResponse.success("Xác minh tài khoản thành công", result.getLeft()));
     }
 
     @PostMapping("/login")
     @Operation(summary = "Authenticate user", description = "Verifies user credentials and returns JWT access and refresh tokens")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
-            @Valid @RequestBody LoginRequest request) {
+        @Valid @RequestBody LoginRequest request
+    ) {
         Pair<AuthResponse, String> result = authService.login(request);
 
         return ResponseEntity.ok()
-                .header(SET_COOKIE_HEADER, buildRefreshTokenCookie(result.getRight()).toString())
+                .header(HttpHeaders.SET_COOKIE, buildRefreshTokenCookie(result.getRight()).toString())
                 .body(ApiResponse.success("Đăng nhập thành công", result.getLeft()));
     }
 
@@ -77,8 +83,24 @@ public class AuthController {
 
         Pair<AuthResponse, String> result = authService.refresh(request);
         return ResponseEntity.ok()
-                .header(SET_COOKIE_HEADER, buildRefreshTokenCookie(result.getRight()).toString())
+                .header(HttpHeaders.SET_COOKIE, buildRefreshTokenCookie(result.getRight()).toString())
                 .body(ApiResponse.success("Token đã được làm mới thành công", result.getLeft()));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout and revoke refresh token",
+            description = "Revoke the refresh token from that device")
+    public ResponseEntity<ApiResponse<Void>> logout(
+        @Parameter(hidden = true)
+        @CookieValue(name = "refreshToken", required = false) String refreshToken,
+        HttpServletResponse response
+    ) {
+        if (refreshToken != null) {
+            authService.revokeRefreshToken(refreshToken);
+        }
+
+        response.addHeader(HttpHeaders.SET_COOKIE, clearRefreshTokenCookie().toString());
+        return ResponseEntity.ok().build();
     }
 
     // Helper method for building a cookie
@@ -89,6 +111,17 @@ public class AuthController {
             .secure(true)
             .path("/")
             .maxAge(appJwtProperties.refreshTokenTtlDays() * 24 * 60 * 60)
+            .sameSite("Strict")
+            .build();
+    }
+
+    private ResponseCookie clearRefreshTokenCookie() {
+        return ResponseCookie
+            .from("refreshToken", "")
+            .httpOnly(true)
+            .secure(true)
+            .path("/")
+            .maxAge(0)
             .sameSite("Strict")
             .build();
     }
