@@ -2,6 +2,7 @@ package com.yoedu.yoedurealestateapi.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yoedu.yoedurealestateapi.common.exception.BadRequestException;
+import com.yoedu.yoedurealestateapi.config.AppFrontendConfig;
 import com.yoedu.yoedurealestateapi.domain.entities.RefreshToken;
 import com.yoedu.yoedurealestateapi.domain.entities.User;
 import com.yoedu.yoedurealestateapi.domain.entities.UserProfile;
@@ -40,6 +41,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, Object> pendingUserRedisTemplate;
     private final AppJwtProperties jwtProperties;
+    private final AppFrontendConfig frontendConfig;
     private final ObjectMapper objectMapper;
 
 
@@ -65,8 +67,8 @@ public class AuthServiceImpl implements AuthService {
         pendingUserRedisTemplate.opsForValue().set(pendingUserKey(pendingUserId), pendingUser, ttl);
 
         String verificationToken = jwtService.generateVerificationToken(pendingUserId.toString(), request.email());
-        // TODO: This is development URL (backend only)
-        String verificationUrl = "http://localhost:8080/api/auth/verify?token=" + verificationToken;
+        // TODO: This is development URL
+        String verificationUrl = frontendConfig.url() + "/auth/verify?token=" + verificationToken;
         emailService.sendEmail(
             request.email(),
             "Xác minh tài khoản",

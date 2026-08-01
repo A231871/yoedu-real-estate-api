@@ -54,6 +54,8 @@ server:
     context-path: /api
 
 app:
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:5173} # NOTE: Development frontend URL
   jwt:
     issuer: estate-api
     secret: ${JWT_SECRET}
