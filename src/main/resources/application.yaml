@@ -36,11 +36,19 @@ spring:
     default-schema: public
     schemas: public
     locations: classpath:db/migration
-
   # NOTE: This is dev smtp. Change to proper email domain in production
   mail:
-    host: localhost
-    port: 1025
+    host: smtp.gmail.com
+    port: 587
+    username: ${GMAIL_NAME}
+    password: ${GMAIL_APP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
 
 springdoc:
   api-docs:
