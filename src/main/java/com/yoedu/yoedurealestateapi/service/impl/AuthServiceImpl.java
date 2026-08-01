@@ -154,6 +154,13 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
+    public void revokeRefreshToken(String token) {
+        String tokenHash = jwtService.hashToken(token);
+        refreshTokenRepository.revokeByTokenHash(tokenHash);
+    }
+
+    @Override
+    @Transactional
     public Pair<AuthResponse, String> refresh(RefreshRequest request) {
         // Validate received token
         String receivedRefreshTokenString = request.refreshToken();
