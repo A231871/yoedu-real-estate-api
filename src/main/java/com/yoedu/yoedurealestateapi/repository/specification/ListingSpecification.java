@@ -9,6 +9,7 @@ import org.springframework.data.jpa.domain.Specification;
 import com.yoedu.yoedurealestateapi.domain.entities.Amenity;
 import com.yoedu.yoedurealestateapi.domain.entities.Listing;
 import com.yoedu.yoedurealestateapi.domain.entities.Province;
+import com.yoedu.yoedurealestateapi.domain.entities.PropertyType;
 import com.yoedu.yoedurealestateapi.domain.entities.Ward;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
 
@@ -33,6 +34,7 @@ public class ListingSpecification implements Specification<Listing> {
     private final Integer maxBathrooms;
     private final BigDecimal minArea;
     private final BigDecimal maxArea;
+    private final Integer propertyTypeId;
     private final List<Integer> amenityIds;
 
     public ListingSpecification(
@@ -48,6 +50,7 @@ public class ListingSpecification implements Specification<Listing> {
         Integer maxBathrooms,
         BigDecimal minArea,
         BigDecimal maxArea,
+        Integer propertyTypeId,
         List<Integer> amenityIds
     ) {
         this.listingType = listingType;
@@ -62,6 +65,7 @@ public class ListingSpecification implements Specification<Listing> {
         this.maxBathrooms = maxBathrooms;
         this.minArea = minArea;
         this.maxArea = maxArea;
+        this.propertyTypeId = propertyTypeId;
         this.amenityIds = amenityIds;
     }
 
@@ -125,6 +129,12 @@ public class ListingSpecification implements Specification<Listing> {
         }
         if (maxPrice != null) {
             predicates.add(builder.lessThanOrEqualTo(root.get("amountVND"), maxPrice));
+        }
+
+        // Filter by property type
+        if (propertyTypeId != null) {
+            Join<Listing, PropertyType> propertyTypeJoin = root.join("propertyType", JoinType.INNER);
+            predicates.add(builder.equal(propertyTypeJoin.get("id"), propertyTypeId));
         }
 
         // Filter by amenities (listing must have all specified amenities)

@@ -30,6 +30,7 @@ public interface ListingService {
         BigDecimal minArea,
         BigDecimal maxArea,
 
+        Integer propertyTypeId,
         String title,
         String provinceCode,
         String wardCode,
