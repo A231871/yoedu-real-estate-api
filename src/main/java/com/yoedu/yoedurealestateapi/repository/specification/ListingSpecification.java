@@ -10,6 +10,7 @@ import org.springframework.data.jpa.domain.Specification;
 import com.yoedu.yoedurealestateapi.domain.entities.Amenity;
 import com.yoedu.yoedurealestateapi.domain.entities.Listing;
 import com.yoedu.yoedurealestateapi.domain.entities.ListingPrice;
+import com.yoedu.yoedurealestateapi.domain.entities.Province;
 import com.yoedu.yoedurealestateapi.domain.entities.Ward;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
 
@@ -107,7 +108,8 @@ public class ListingSpecification implements Specification<Listing> {
         // Filter by province
         if (provinceCode != null && !provinceCode.isBlank()) {
             Join<Listing, Ward> wardJoin = root.join("ward", JoinType.INNER);
-            predicates.add(builder.equal(wardJoin.get("provinceCode"), provinceCode));
+            Join<Ward, Province> provinceJoin = wardJoin.join("province", JoinType.INNER);
+            predicates.add(builder.equal(provinceJoin.get("code"), provinceCode));
         }
 
         // Filter by price range using subquery to get the latest price
