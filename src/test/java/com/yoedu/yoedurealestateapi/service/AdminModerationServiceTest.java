@@ -18,7 +18,6 @@ import com.yoedu.yoedurealestateapi.common.exception.BadRequestException;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
 import com.yoedu.yoedurealestateapi.domain.entities.AuditLog;
 import com.yoedu.yoedurealestateapi.domain.entities.Listing;
-import com.yoedu.yoedurealestateapi.domain.entities.ListingPrice;
 import com.yoedu.yoedurealestateapi.domain.entities.PropertyType;
 import com.yoedu.yoedurealestateapi.domain.entities.Report;
 import com.yoedu.yoedurealestateapi.domain.entities.User;
@@ -121,9 +120,6 @@ class AdminModerationServiceTest {
         propertyType.setId(1);
         propertyType.setName("Căn hộ");
 
-        ListingPrice price = new ListingPrice();
-        price.setAmountVND(BigDecimal.valueOf(5000000));
-
         listing = new Listing();
         listing.setId(UUID.randomUUID());
         listing.setTitle("Căn hộ trung tâm");
@@ -134,7 +130,7 @@ class AdminModerationServiceTest {
         listing.setListingType(ListingType.FOR_RENT);
         listing.setPropertyType(propertyType);
         listing.setOwner(owner);
-        listing.setPrices(List.of(price));
+        listing.setAmountVND(BigDecimal.valueOf(5000000));
 
         report = new Report();
         report.setId(UUID.randomUUID());
@@ -175,7 +171,7 @@ class AdminModerationServiceTest {
         assertEquals(1, result.getTotalElements());
         ModerationListingSummaryResponse dto = result.getContent().get(0);
         assertEquals("Căn hộ trung tâm", dto.title());
-        assertEquals(BigDecimal.valueOf(5000000), dto.currentPrice());
+        assertEquals(BigDecimal.valueOf(5000000), dto.amountVND());
         assertEquals("Nguyen Van A", dto.ownerName());
         assertEquals("Căn hộ", dto.propertyTypeName());
     }

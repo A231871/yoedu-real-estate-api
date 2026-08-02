@@ -4,9 +4,7 @@ import com.yoedu.yoedurealestateapi.domain.enums.ListingStatus;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
@@ -90,12 +88,6 @@ public class Listing extends ArchivableEntity {
     )
     private Set<ListingMedia> listingMedias = new HashSet<>();
 
-    @NotAudited
-    @OneToMany(
-        mappedBy = "listing",
-        cascade = CascadeType.ALL,
-        orphanRemoval = true
-    )
-    @OrderBy("createdAt DESC")
-    private List<ListingPrice> prices = new ArrayList<>();
+    @Column(name = "amount_vnd", nullable = false, precision = 20, scale = 2)
+    private BigDecimal amountVND;
 }

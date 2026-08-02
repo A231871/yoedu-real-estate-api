@@ -15,5 +15,5 @@ public record ListingSummaryResponse(
     List<ListingMediaDto> thumbnails, // 1-3 thumbnails
     BigDecimal area,
     ListingType listingType,
-    BigDecimal currentPrice
+    BigDecimal amountVND
 ) {}

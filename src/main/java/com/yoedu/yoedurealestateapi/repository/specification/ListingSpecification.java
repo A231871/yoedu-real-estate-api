@@ -1,7 +1,6 @@
 package com.yoedu.yoedurealestateapi.repository.specification;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,7 +8,6 @@ import org.springframework.data.jpa.domain.Specification;
 
 import com.yoedu.yoedurealestateapi.domain.entities.Amenity;
 import com.yoedu.yoedurealestateapi.domain.entities.Listing;
-import com.yoedu.yoedurealestateapi.domain.entities.ListingPrice;
 import com.yoedu.yoedurealestateapi.domain.entities.Province;
 import com.yoedu.yoedurealestateapi.domain.entities.Ward;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingType;
@@ -18,10 +16,8 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
-import jakarta.persistence.criteria.Subquery;
 
 public class ListingSpecification implements Specification<Listing> {
 
@@ -112,27 +108,12 @@ public class ListingSpecification implements Specification<Listing> {
             predicates.add(builder.equal(provinceJoin.get("code"), provinceCode));
         }
 
-        // Filter by price range using subquery to get the latest price
-        if (minPrice != null || maxPrice != null) {
-            // Create a subquery to get the latest price for each listing
-            Subquery<Instant> latestPriceTimeSubquery = query.subquery(Instant.class);
-            Root<ListingPrice> latestPriceRoot = latestPriceTimeSubquery.from(ListingPrice.class);
-            Path<Instant> createdAt = latestPriceRoot.get("createdAt");
-            latestPriceTimeSubquery.select(builder.greatest(createdAt))
-                .where(builder.equal(latestPriceRoot.get("listing"), root));
-
-            // Join with prices
-            Join<Listing, ListingPrice> priceJoin = root.join("prices", JoinType.LEFT);
-
-            // Filter to get only the latest price
-            predicates.add(builder.equal(priceJoin.get("createdAt"), latestPriceTimeSubquery));
-
-            if (minPrice != null) {
-                predicates.add(builder.greaterThanOrEqualTo(priceJoin.get("amountVND"), minPrice));
-            }
-            if (maxPrice != null) {
-                predicates.add(builder.lessThanOrEqualTo(priceJoin.get("amountVND"), maxPrice));
-            }
+        // Filter by price range
+        if (minPrice != null) {
+            predicates.add(builder.greaterThanOrEqualTo(root.get("amountVND"), minPrice));
+        }
+        if (maxPrice != null) {
+            predicates.add(builder.lessThanOrEqualTo(root.get("amountVND"), maxPrice));
         }
 
         // Filter by amenities (listing must have all specified amenities)
