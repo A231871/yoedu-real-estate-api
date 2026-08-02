@@ -19,12 +19,15 @@ import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.PropertyTypeRepository;
 import com.yoedu.yoedurealestateapi.repository.UserRepository;
 import com.yoedu.yoedurealestateapi.repository.WardRepository;
+import com.yoedu.yoedurealestateapi.repository.specification.ListingSpecification;
 import com.yoedu.yoedurealestateapi.service.ListingService;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -203,10 +206,42 @@ public class ListingServiceImpl implements ListingService {
 
     // Service methods
     @Override
-    public Page<ListingSummaryResponse> getListingSummaries(Pageable pageable, ListingType listingType) {
-        return listingRepository
-            .findAllByListingType(listingType, pageable)
-            .map(this::toListingSummaryResponse);
+    public Page<ListingSummaryResponse> getListingSummaries(
+        Pageable pageable,
+        ListingType listingType,
+        BigDecimal minPrice,
+        BigDecimal maxPrice,
+        Integer minBedRooms,
+        Integer maxBedroom,
+        Integer minBathrooms,
+        Integer maxBathrooms,
+        BigDecimal minArea,
+        BigDecimal maxArea,
+        String provinceCode,
+        String wardCode,
+        List<Integer> amenityIds
+    ) {
+        // Create specification with all filter criteria
+        ListingSpecification specification = new ListingSpecification(
+            listingType,
+            minPrice,
+            maxPrice,
+            provinceCode,
+            wardCode,
+            minBedRooms,
+            maxBedroom,
+            minBathrooms,
+            maxBathrooms,
+            minArea,
+            maxArea,
+            amenityIds
+        );
+
+        // Fetch listings using the specification and pageable
+        Page<Listing> listingPage = listingRepository.findAll(specification, pageable);
+
+        // Map to response DTOs
+        return listingPage.map(this::toListingSummaryResponse);
     }
 
     @Override

@@ -8,6 +8,8 @@ import com.yoedu.yoedurealestateapi.dto.listing.ListingSummaryResponse;
 import com.yoedu.yoedurealestateapi.dto.listing.ListingUpsertRequest;
 import com.yoedu.yoedurealestateapi.service.ListingService;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 
 import org.springdoc.core.annotations.ParameterObject;
@@ -42,10 +44,37 @@ public class ListingController {
             sort = "createdAt",
             direction = Sort.Direction.DESC
         ) Pageable pageable,
-        @RequestParam ListingType listingType
+        @RequestParam ListingType listingType,
+        @RequestParam(required = false) BigDecimal minPrice,
+        @RequestParam(required = false) BigDecimal maxPrice,
+        @RequestParam(required = false) Integer minBedrooms,
+        @RequestParam(required = false) Integer maxBedrooms,
+        @RequestParam(required = false) Integer minBathrooms,
+        @RequestParam(required = false) Integer maxBathrooms,
+        @RequestParam(required = false) BigDecimal minArea,
+        @RequestParam(required = false) BigDecimal maxArea,
+        @RequestParam(required = false) String provinceCode,
+        @RequestParam(required = false) String wardCode,
+        @RequestParam(required = false) List<Integer> amenityIds
     ) {
         return ResponseEntity.ok(
-            ApiResponse.success(listingService.getListingSummaries(pageable, listingType))
+            ApiResponse.success(
+                listingService.getListingSummaries(
+                    pageable,
+                    listingType,
+                    minPrice,
+                    maxPrice,
+                    minBedrooms,
+                    maxBedrooms,
+                    minBathrooms,
+                    maxBathrooms,
+                    minArea,
+                    maxArea,
+                    provinceCode,
+                    wardCode,
+                    amenityIds
+                )
+            )
         );
     }
 
