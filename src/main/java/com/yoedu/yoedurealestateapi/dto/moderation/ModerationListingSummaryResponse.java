@@ -10,7 +10,7 @@ public record ModerationListingSummaryResponse(
     String slug,
     String address,
     BigDecimal area,
-    BigDecimal currentPrice,
+    BigDecimal amountVND,
     String listingType,
     String propertyTypeName,
     UUID ownerId,

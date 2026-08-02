@@ -27,7 +27,7 @@ public record ListingDetailResponse(
     String province,
     String ward,
 
-    BigDecimal currentPrice,
+    BigDecimal amountVND,
 
     List<ListingMediaDto> listingMediaDtos,
 

@@ -5,7 +5,6 @@ import com.yoedu.yoedurealestateapi.common.exception.BadRequestException;
 import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
 import com.yoedu.yoedurealestateapi.domain.entities.AuditLog;
 import com.yoedu.yoedurealestateapi.domain.entities.Listing;
-import com.yoedu.yoedurealestateapi.domain.entities.ListingPrice;
 import com.yoedu.yoedurealestateapi.domain.entities.Report;
 import com.yoedu.yoedurealestateapi.domain.entities.User;
 import com.yoedu.yoedurealestateapi.domain.enums.ListingStatus;
@@ -30,7 +29,6 @@ import com.yoedu.yoedurealestateapi.service.UserProfileService;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.JoinType;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -374,7 +372,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
             listing.getSlug(),
             listing.getAddress(),
             listing.getArea(),
-            extractCurrentPrice(listing),
+            listing.getAmountVND(),
             listing.getListingType() != null ? listing.getListingType().name() : null,
             listing.getPropertyType() != null ? listing.getPropertyType().getName() : null,
             listing.getOwner() != null ? listing.getOwner().getId() : null,
@@ -382,14 +380,6 @@ public class AdminModerationServiceImpl implements AdminModerationService {
             listing.getStatus() != null ? listing.getStatus().name() : null,
             listing.getCreatedAt()
         );
-    }
-
-    private BigDecimal extractCurrentPrice(Listing listing) {
-        if (listing == null || listing.getPrices() == null || listing.getPrices().isEmpty()) {
-            return null;
-        }
-        ListingPrice firstPrice = listing.getPrices().get(0);
-        return firstPrice != null ? firstPrice.getAmountVND() : null;
     }
 
     private ReportResponse toReportResponse(Report report) {

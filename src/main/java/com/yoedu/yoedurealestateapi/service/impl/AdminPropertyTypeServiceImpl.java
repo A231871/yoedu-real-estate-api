@@ -12,7 +12,6 @@ import com.yoedu.yoedurealestateapi.service.AdminPropertyTypeService;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,7 +54,6 @@ public class AdminPropertyTypeServiceImpl implements AdminPropertyTypeService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "propertyTypes", allEntries = true)
     public PropertyTypeResponse createPropertyType(UpdatePropertyTypeRequest request) {
         if (propertyTypeRepository.existsBySlug(request.slug())) {
             throw new ConflictException("Slug đã được sử dụng");
@@ -73,7 +71,6 @@ public class AdminPropertyTypeServiceImpl implements AdminPropertyTypeService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "propertyTypes", allEntries = true)
     public PropertyTypeResponse updatePropertyType(Integer id, UpdatePropertyTypeRequest request) {
         PropertyType propertyType = propertyTypeRepository.findById(id)
             .orElseThrow(() -> new NotFoundException("Loại bất động sản không tồn tại"));
@@ -105,7 +102,6 @@ public class AdminPropertyTypeServiceImpl implements AdminPropertyTypeService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "propertyTypes", allEntries = true)
     public void deletePropertyType(Integer id) {
         PropertyType propertyType = propertyTypeRepository.findById(id)
             .orElseThrow(() -> new NotFoundException("Loại bất động sản không tồn tại"));

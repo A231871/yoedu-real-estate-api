@@ -40,6 +40,9 @@ CREATE TABLE listings (
     floors            INT
         CHECK (floors >= 0),
 
+    amount_vnd        NUMERIC(20, 2) NOT NULL
+        CHECK (amount_vnd >= 0),
+
     status            VARCHAR(50) NOT NULL DEFAULT 'PENDING'
         CHECK (
             status IN (
@@ -100,24 +103,6 @@ CREATE TABLE listing_amenities (
 );
 
 CREATE INDEX idx_listing_amenities_amenity ON listing_amenities(amenity_id);
-
--- ============================================================
--- Listing Prices
--- ============================================================
-
-CREATE TABLE listing_prices (
-    id          UUID           PRIMARY KEY DEFAULT uuidv7(),
-    created_at  TIMESTAMPTZ    NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ    NOT NULL DEFAULT now(),
-    listing_id  UUID           NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
-    amount_vnd  NUMERIC(20, 2) NOT NULL CHECK (amount_vnd >= 0)
-);
-
-CREATE INDEX idx_listing_prices_listing ON listing_prices(listing_id, created_at DESC);
-
-CREATE TRIGGER trg_listing_prices_updated_at
-    BEFORE UPDATE ON listing_prices
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ============================================================
 -- Listing Media

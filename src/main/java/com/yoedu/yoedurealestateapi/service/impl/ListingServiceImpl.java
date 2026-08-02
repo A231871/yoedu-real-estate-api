@@ -5,7 +5,6 @@ import com.yoedu.yoedurealestateapi.common.exception.NotFoundException;
 import com.yoedu.yoedurealestateapi.domain.entities.Amenity;
 import com.yoedu.yoedurealestateapi.domain.entities.Listing;
 import com.yoedu.yoedurealestateapi.domain.entities.ListingMedia;
-import com.yoedu.yoedurealestateapi.domain.entities.ListingPrice;
 import com.yoedu.yoedurealestateapi.domain.entities.PropertyType;
 import com.yoedu.yoedurealestateapi.domain.entities.User;
 import com.yoedu.yoedurealestateapi.domain.entities.Ward;
@@ -19,12 +18,14 @@ import com.yoedu.yoedurealestateapi.repository.ListingRepository;
 import com.yoedu.yoedurealestateapi.repository.PropertyTypeRepository;
 import com.yoedu.yoedurealestateapi.repository.UserRepository;
 import com.yoedu.yoedurealestateapi.repository.WardRepository;
+import com.yoedu.yoedurealestateapi.repository.specification.ListingSpecification;
 import com.yoedu.yoedurealestateapi.service.ListingService;
 
+import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -70,9 +71,7 @@ public class ListingServiceImpl implements ListingService {
                 .toList(),
             listing.getArea(),
             listing.getListingType(),
-            listing.getPrices().isEmpty()
-                ? null
-                : listing.getPrices().getFirst().getAmountVND()
+            listing.getAmountVND()
         );
     }
 
@@ -102,9 +101,7 @@ public class ListingServiceImpl implements ListingService {
             ward.getProvince().getName(),
             ward.getName(),
 
-            listing.getPrices().isEmpty()
-                ? null
-                : listing.getPrices().getFirst().getAmountVND(),
+            listing.getAmountVND(),
 
             listing
                 .getListingMedias()
@@ -177,10 +174,6 @@ public class ListingServiceImpl implements ListingService {
             })
             .collect(Collectors.toSet());
 
-        ListingPrice listingPrice = new ListingPrice();
-        listingPrice.setListing(newListing);
-        listingPrice.setAmountVND(request.getPrice());
-
         // Map to Listing entity
         newListing.setOwner(owner);
         newListing.setAgent(agent.orElse(null));
@@ -197,16 +190,51 @@ public class ListingServiceImpl implements ListingService {
         newListing.setWard(ward);
         newListing.setAmenities(amenities.isEmpty() ? null : amenities);
         newListing.setListingMedias(listingMedias);
-        newListing.setPrices(new ArrayList<>());
-        newListing.getPrices().add(listingPrice);
+        newListing.setAmountVND(request.getPrice());
     }
 
     // Service methods
     @Override
-    public Page<ListingSummaryResponse> getListingSummaries(Pageable pageable, ListingType listingType) {
-        return listingRepository
-            .findAllByListingType(listingType, pageable)
-            .map(this::toListingSummaryResponse);
+    public Page<ListingSummaryResponse> getListingSummaries(
+        Pageable pageable,
+        ListingType listingType,
+        BigDecimal minPrice,
+        BigDecimal maxPrice,
+        Integer minBedRooms,
+        Integer maxBedroom,
+        Integer minBathrooms,
+        Integer maxBathrooms,
+        BigDecimal minArea,
+        BigDecimal maxArea,
+        Integer propertyTypeId,
+        String title,
+        String provinceCode,
+        String wardCode,
+        List<Integer> amenityIds
+    ) {
+        // Create specification with all filter criteria
+        ListingSpecification specification = new ListingSpecification(
+            listingType,
+            minPrice,
+            maxPrice,
+            title,
+            provinceCode,
+            wardCode,
+            minBedRooms,
+            maxBedroom,
+            minBathrooms,
+            maxBathrooms,
+            minArea,
+            maxArea,
+            propertyTypeId,
+            amenityIds
+        );
+
+        // Fetch listings using the specification and pageable
+        Page<Listing> listingPage = listingRepository.findAll(specification, pageable);
+
+        // Map to response DTOs
+        return listingPage.map(this::toListingSummaryResponse);
     }
 
     @Override
