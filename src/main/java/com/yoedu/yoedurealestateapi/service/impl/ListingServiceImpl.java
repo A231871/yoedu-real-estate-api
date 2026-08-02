@@ -207,6 +207,7 @@ public class ListingServiceImpl implements ListingService {
         Integer maxBathrooms,
         BigDecimal minArea,
         BigDecimal maxArea,
+        String title,
         String provinceCode,
         String wardCode,
         List<Integer> amenityIds
@@ -216,6 +217,7 @@ public class ListingServiceImpl implements ListingService {
             listingType,
             minPrice,
             maxPrice,
+            title,
             provinceCode,
             wardCode,
             minBedRooms,

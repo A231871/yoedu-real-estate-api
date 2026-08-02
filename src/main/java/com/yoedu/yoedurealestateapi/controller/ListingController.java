@@ -53,6 +53,7 @@ public class ListingController {
         @RequestParam(required = false) Integer maxBathrooms,
         @RequestParam(required = false) BigDecimal minArea,
         @RequestParam(required = false) BigDecimal maxArea,
+        @RequestParam(required = false) String title,
         @RequestParam(required = false) String provinceCode,
         @RequestParam(required = false) String wardCode,
         @RequestParam(required = false) List<Integer> amenityIds
@@ -70,6 +71,7 @@ public class ListingController {
                     maxBathrooms,
                     minArea,
                     maxArea,
+                    title,
                     provinceCode,
                     wardCode,
                     amenityIds

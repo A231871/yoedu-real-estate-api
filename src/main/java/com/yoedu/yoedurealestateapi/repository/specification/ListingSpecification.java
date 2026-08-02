@@ -24,6 +24,7 @@ public class ListingSpecification implements Specification<Listing> {
     private final ListingType listingType;
     private final BigDecimal minPrice;
     private final BigDecimal maxPrice;
+    private final String title;
     private final String provinceCode;
     private final String wardCode;
     private final Integer minBedrooms;
@@ -38,6 +39,7 @@ public class ListingSpecification implements Specification<Listing> {
         ListingType listingType,
         BigDecimal minPrice,
         BigDecimal maxPrice,
+        String title,
         String provinceCode,
         String wardCode,
         Integer minBedrooms,
@@ -51,6 +53,7 @@ public class ListingSpecification implements Specification<Listing> {
         this.listingType = listingType;
         this.minPrice = minPrice;
         this.maxPrice = maxPrice;
+        this.title = title;
         this.provinceCode = provinceCode;
         this.wardCode = wardCode;
         this.minBedrooms = minBedrooms;
@@ -93,6 +96,14 @@ public class ListingSpecification implements Specification<Listing> {
         }
         if (maxArea != null) {
             predicates.add(builder.lessThanOrEqualTo(root.get("area"), maxArea));
+        }
+
+        // Filter by title (case-insensitive partial match)
+        if (title != null && !title.isBlank()) {
+            predicates.add(builder.like(
+                builder.lower(root.get("title")),
+                "%" + title.toLowerCase() + "%"
+            ));
         }
 
         // Filter by ward

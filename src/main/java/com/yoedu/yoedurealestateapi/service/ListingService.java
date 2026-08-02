@@ -30,6 +30,7 @@ public interface ListingService {
         BigDecimal minArea,
         BigDecimal maxArea,
 
+        String title,
         String provinceCode,
         String wardCode,
         List<Integer> amenityIds
