@@ -23,7 +23,6 @@ import com.yoedu.yoedurealestateapi.service.ListingService;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;

@@ -7,7 +7,6 @@ import com.yoedu.yoedurealestateapi.service.PropertyTypeService;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -28,7 +27,6 @@ public class PropertyTypeServiceImpl implements PropertyTypeService {
     }
 
     @Override
-    @Cacheable(value = "propertyTypes", key = "'all'")
     public List<PropertyTypeResponse> getPropertyTypes() {
         return propertyTypeRepository
             .findAllByOrderBySortOrderAsc()
